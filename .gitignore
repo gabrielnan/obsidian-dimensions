@@ -1,0 +1,8 @@
+node_modules/
+main.js
+main.js.map
+data.json
+_smoke*.mjs
+_smoke*.ts
+_smoke*.cjs
+.DS_Store

@@ -1,0 +1,17 @@
+{
+  "name": "atlas-dimensions",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Multi-dimensional views over a unified vault hierarchy",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "node esbuild.config.mjs production"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "esbuild": "0.20.2",
+    "obsidian": "1.5.7",
+    "typescript": "5.4.5"
+  }
+}
