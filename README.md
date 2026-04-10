@@ -40,14 +40,44 @@ Priority and timeframe aren't a list of checkboxes — they're independent axes.
 | **File** | YAML frontmatter `dimensions:` block | `dimensions:\n  priority: p1` |
 | **Folder** | `dimensions:` block in the folder's `_context.md` frontmatter | `dimensions:\n  priority: p2` |
 
-Tag prefixes are configurable per dimension. The seed dimensions use `#p/...` for priority and `#t/...` for timeframe.
+Tag prefixes are configurable per dimension. The default dimensions use `#p/...` for priority and `#t/...` for timeframe.
 
-### Seed dimensions (Phase 1)
+## Configuration
 
-| Dimension | Prefix | Values |
-|---|---|---|
-| **Priority** | `#p/` | `p0` (must-win), `p1` (high), `p2` (normal), `p3` (low) |
-| **Timeframe** | `#t/` | `today`, `week`, `month`, `quarter`, `year` |
+Dimensions are defined in `.dimensions.json` at the **root of your vault**. On first load the plugin creates this file with the default priority + timeframe dimensions, so you don't need to touch anything to get started. Edit the file whenever you want to add a new axis, rename a value, or change a color.
+
+```json
+{
+  "dimensions": [
+    {
+      "id": "priority",
+      "label": "Priority",
+      "tagPrefix": "p",
+      "frontmatterKey": "priority",
+      "values": [
+        { "id": "p0", "label": "P0 — must-win", "color": "#ef4444" },
+        { "id": "p1", "label": "P1 — high",     "color": "#f59e0b" },
+        { "id": "p2", "label": "P2 — normal",   "color": "#eab308" },
+        { "id": "p3", "label": "P3 — low",      "color": "#94a3b8" }
+      ]
+    }
+  ]
+}
+```
+
+Per dimension:
+
+| Field | Meaning |
+|---|---|
+| `id` | Stable identifier; used in CSS classes and as fallback for `frontmatterKey`. |
+| `label` | Display name in the group-by view (optional; defaults to `id`). |
+| `tagPrefix` | Matches `#<prefix>/<value>` inline tags. |
+| `frontmatterKey` | Key under the `dimensions:` block in file/folder frontmatter (optional; defaults to `id`). |
+| `values` | Ordered array of possible values. Array order determines display order. |
+
+Per value: `id` and `color` are required; `label` is optional. Colors should be hex (`#rrggbb` or `#rgb`) so the plugin can generate the left-border + tinted background pair.
+
+After editing `.dimensions.json`, run **Dimensions: Reload .dimensions.json** — Obsidian's vault events don't fire for dot-files, so the reload has to be explicit. The command re-parses the config, regenerates the CSS, reindexes the vault, and refreshes any open group-by views.
 
 ## What you get
 
@@ -61,6 +91,7 @@ Tag prefixes are configurable per dimension. The seed dimensions use `#p/...` fo
 - **Dimensions: Open group-by view**
 - **Dimensions: Cycle active coloring dimension**
 - **Dimensions: Reindex vault**
+- **Dimensions: Reload .dimensions.json**
 
 ## Install (for development)
 
@@ -78,11 +109,11 @@ Then enable "Dimensions" in Obsidian's Community Plugins settings.
 
 ## Status
 
-**Phase 1** — core engine + group-by view + in-editor coloring. The dimension list is hardcoded (`priority`, `timeframe`).
+**Phase 1** — core engine + group-by view + in-editor coloring. Dimensions are user-configurable via `.dimensions.json` at the vault root.
 
 Planned next:
 
-- **Phase 2**: filter view with multi-axis dimension + semantic scope filters; settings tab for user-defined dimensions; scope presets (e.g. `**/*Planning.md`); an "assign dimension to current node" command.
+- **Phase 2**: filter view with multi-axis dimension + semantic scope filters; a settings-tab editor for `.dimensions.json`; scope presets (e.g. `**/*Planning.md`); an "assign dimension to current node" command.
 - **Phase 3**: integration with obsidian-zoom; persisted expand/collapse state; effective-dimension badges in-editor.
 
 ## Why the name

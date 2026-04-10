@@ -1,16 +1,6 @@
-/* Dimensions — in-editor line coloring and view styles */
-
-/* Left-border highlight on every line whose effective value matches */
-.dim-priority-p0 { box-shadow: inset 4px 0 0 #ef4444; background: rgba(239, 68, 68, 0.06); }
-.dim-priority-p1 { box-shadow: inset 4px 0 0 #f59e0b; background: rgba(245, 158, 11, 0.06); }
-.dim-priority-p2 { box-shadow: inset 4px 0 0 #eab308; background: rgba(234, 179, 8, 0.05); }
-.dim-priority-p3 { box-shadow: inset 4px 0 0 #94a3b8; background: rgba(148, 163, 184, 0.05); }
-
-.dim-timeframe-today   { box-shadow: inset 4px 0 0 #22c55e; background: rgba(34, 197, 94, 0.06); }
-.dim-timeframe-week    { box-shadow: inset 4px 0 0 #06b6d4; background: rgba(6, 182, 212, 0.06); }
-.dim-timeframe-month   { box-shadow: inset 4px 0 0 #6366f1; background: rgba(99, 102, 241, 0.06); }
-.dim-timeframe-quarter { box-shadow: inset 4px 0 0 #a855f7; background: rgba(168, 85, 247, 0.06); }
-.dim-timeframe-year    { box-shadow: inset 4px 0 0 #ec4899; background: rgba(236, 72, 153, 0.06); }
+/* Dimensions — view styles. Per-value line-coloring rules are injected
+   dynamically at runtime from the user's .dimensions.json config
+   (see src/styles-dynamic.ts). */
 
 /* Group-by view */
 .dim-view {

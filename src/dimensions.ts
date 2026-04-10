@@ -1,5 +1,6 @@
-// Hardcoded seed attributes for Phase 1.
-// In Phase 2 these become user-editable in the settings tab.
+// Default dimensions used when `.dimensions.json` doesn't exist at the vault root,
+// or as a fallback when the user's config fails to parse. Users can override the
+// whole set by editing `.dimensions.json`; see src/config.ts.
 
 import { Dimension } from "./model";
 
