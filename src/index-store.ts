@@ -3,7 +3,7 @@
 
 import { App, TFile, TFolder, debounce } from "obsidian";
 import {
-  AttrNode,
+  VaultNode,
   Dimension,
   DimensionId,
   NodeFilter,
@@ -16,12 +16,12 @@ import {
 import { parseFile } from "./parser/file";
 import { parseFolder } from "./parser/folder";
 import { propagate } from "./parser/inheritance";
-import { parseAvFrontmatterForFolder } from "./parser/folder-frontmatter";
+import { parseDimensionsFrontmatterForFolder } from "./parser/folder-frontmatter";
 
 type ChangeListener = () => void;
 
-export class AttrIndex {
-  private nodes = new Map<string, AttrNode>();
+export class VaultIndex {
+  private nodes = new Map<string, VaultNode>();
   private rootId = VAULT_ROOT_ID;
   private dimensions: Dimension[];
   private listeners = new Set<ChangeListener>();
@@ -43,22 +43,22 @@ export class AttrIndex {
     return () => this.listeners.delete(listener);
   }
 
-  getRoot(): AttrNode | undefined {
+  getRoot(): VaultNode | undefined {
     return this.nodes.get(this.rootId);
   }
 
-  getNode(id: string): AttrNode | undefined {
+  getNode(id: string): VaultNode | undefined {
     return this.nodes.get(id);
   }
 
-  getChildren(id: string): AttrNode[] {
+  getChildren(id: string): VaultNode[] {
     const node = this.nodes.get(id);
     if (!node) return [];
-    return node.childIds.map((cid) => this.nodes.get(cid)).filter((n): n is AttrNode => !!n);
+    return node.childIds.map((cid) => this.nodes.get(cid)).filter((n): n is VaultNode => !!n);
   }
 
-  getAncestors(id: string): AttrNode[] {
-    const out: AttrNode[] = [];
+  getAncestors(id: string): VaultNode[] {
+    const out: VaultNode[] = [];
     let cur = this.nodes.get(id);
     while (cur && cur.parentId) {
       const parent = this.nodes.get(cur.parentId);
@@ -69,7 +69,7 @@ export class AttrIndex {
     return out.reverse();
   }
 
-  nodeAtLine(filePath: string, line: number): AttrNode | undefined {
+  nodeAtLine(filePath: string, line: number): VaultNode | undefined {
     // Linear scan over the file's nodes. Fine for small files; can be indexed later.
     for (const node of this.nodes.values()) {
       if (node.filePath === filePath && node.line === line) return node;
@@ -77,8 +77,8 @@ export class AttrIndex {
     return undefined;
   }
 
-  nodesInFile(filePath: string): AttrNode[] {
-    const result: AttrNode[] = [];
+  nodesInFile(filePath: string): VaultNode[] {
+    const result: VaultNode[] = [];
     for (const node of this.nodes.values()) {
       if (node.filePath === filePath && node.line !== null) result.push(node);
     }
@@ -140,7 +140,7 @@ export class AttrIndex {
       const folderNode = this.nodes.get(fId);
       if (folderNode) {
         const content = await this.app.vault.cachedRead(file);
-        folderNode.ownDimensions = parseAvFrontmatterForFolder(content, this.dimensions);
+        folderNode.ownDimensions = parseDimensionsFrontmatterForFolder(content, this.dimensions);
         this.runInheritance();
         this.notify();
       }
@@ -226,13 +226,13 @@ export class AttrIndex {
 
   // ---- Query API ----
 
-  query(filter: NodeFilter): AttrNode[] {
+  query(filter: NodeFilter): VaultNode[] {
     const scopeId = filter.scopeId ?? this.rootId;
     const scope = this.nodes.get(scopeId);
     if (!scope) return [];
 
-    const result: AttrNode[] = [];
-    const visit = (node: AttrNode) => {
+    const result: VaultNode[] = [];
+    const visit = (node: VaultNode) => {
       if (this.matches(node, filter)) result.push(node);
       for (const childId of node.childIds) {
         const child = this.nodes.get(childId);
@@ -243,7 +243,7 @@ export class AttrIndex {
     return result;
   }
 
-  private matches(node: AttrNode, filter: NodeFilter): boolean {
+  private matches(node: VaultNode, filter: NodeFilter): boolean {
     if (filter.nodeTypes && !filter.nodeTypes.includes(node.type)) return false;
     if (filter.dimensionFilters) {
       for (const [dimId, values] of Object.entries(filter.dimensionFilters)) {
@@ -259,8 +259,8 @@ export class AttrIndex {
   groupByDimension(
     dimensionId: DimensionId,
     filter: NodeFilter,
-  ): Map<ValueId | "__unset__", AttrNode[]> {
-    const out = new Map<ValueId | "__unset__", AttrNode[]>();
+  ): Map<ValueId | "__unset__", VaultNode[]> {
+    const out = new Map<ValueId | "__unset__", VaultNode[]>();
     for (const node of this.query(filter)) {
       const v = node.effectiveDimensions.get(dimensionId) ?? "__unset__";
       const arr = out.get(v) ?? [];

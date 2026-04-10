@@ -1,30 +1,30 @@
-// Attribute Views — plugin entry point.
+// Dimensions — plugin entry point.
 
 import { Plugin, TFile, WorkspaceLeaf, Notice } from "obsidian";
 import { Extension } from "@codemirror/state";
-import { AttrIndex } from "./src/index-store";
+import { VaultIndex } from "./src/index-store";
 import { SEED_DIMENSIONS } from "./src/dimensions";
 import { createColoringExtension } from "./src/decorations";
 import { GroupByView, GROUP_VIEW_TYPE } from "./src/views/group-view";
 
-interface AttributeViewsSettings {
+interface DimensionsSettings {
   activeColoringDimension: string | null;
 }
 
-const DEFAULT_SETTINGS: AttributeViewsSettings = {
+const DEFAULT_SETTINGS: DimensionsSettings = {
   activeColoringDimension: "priority",
 };
 
-export default class AttributeViewsPlugin extends Plugin {
-  settings!: AttributeViewsSettings;
-  index!: AttrIndex;
+export default class DimensionsPlugin extends Plugin {
+  settings!: DimensionsSettings;
+  index!: VaultIndex;
   private editorExtensions: Extension[] = [];
 
   async onload(): Promise<void> {
-    console.log("[Attribute Views] loading");
+    console.log("[Dimensions] loading");
     await this.loadSettings();
 
-    this.index = new AttrIndex(this.app, SEED_DIMENSIONS);
+    this.index = new VaultIndex(this.app, SEED_DIMENSIONS);
 
     // Register the group-by view.
     this.registerView(
@@ -96,7 +96,7 @@ export default class AttributeViewsPlugin extends Plugin {
     });
     this.addCommand({
       id: "cycle-coloring-dimension",
-      name: "Cycle active coloring attribute",
+      name: "Cycle active coloring dimension",
       callback: () => this.cycleColoringDimension(),
     });
     this.addCommand({
@@ -104,17 +104,17 @@ export default class AttributeViewsPlugin extends Plugin {
       name: "Reindex vault",
       callback: async () => {
         await this.index.rebuildAll();
-        new Notice("Attribute Views: reindexed");
+        new Notice("Dimensions: reindexed");
         this.refreshEditors();
       },
     });
 
     // Ribbon icon for quick access
-    this.addRibbonIcon("layers", "Attribute Views: Group by", () => this.activateGroupView());
+    this.addRibbonIcon("layers", "Dimensions: Group by", () => this.activateGroupView());
   }
 
   async onunload(): Promise<void> {
-    console.log("[Attribute Views] unloading");
+    console.log("[Dimensions] unloading");
   }
 
   async loadSettings(): Promise<void> {
@@ -156,7 +156,7 @@ export default class AttributeViewsPlugin extends Plugin {
     this.editorExtensions.push(ext);
     this.app.workspace.updateOptions();
     this.refreshEditors();
-    new Notice(`Attribute Views: coloring = ${next ?? "off"}`);
+    new Notice(`Dimensions: coloring = ${next ?? "off"}`);
   }
 
   private refreshEditors(): void {
@@ -170,7 +170,7 @@ export default class AttributeViewsPlugin extends Plugin {
       const cm = view?.editor?.cm;
       if (cm) {
         try {
-          cm.dispatch({ userEvent: "av-refresh" });
+          cm.dispatch({ userEvent: "dim-refresh" });
         } catch {
           // no-op
         }

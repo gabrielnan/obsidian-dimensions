@@ -1,16 +1,17 @@
-// Parse a single markdown file into a subtree of AttrNodes.
+// Parse a single markdown file into a subtree of VaultNodes.
+// (Vault-wide unified tree: folder → file → heading → label → bullet.)
 // Handles YAML frontmatter (for file-level dimensions), headings, "label" lines,
 // and bullet lists with inheritance-friendly parent/child linking.
 
-import { AttrNode, Dimension, DimensionId, ValueId, fileId, lineNodeId, newNode } from "../model";
+import { VaultNode, Dimension, DimensionId, ValueId, fileId, lineNodeId, newNode } from "../model";
 
 export interface FileParseResult {
-  fileNode: AttrNode;
-  nodes: AttrNode[]; // all nodes created for this file, including fileNode
+  fileNode: VaultNode;
+  nodes: VaultNode[]; // all nodes created for this file, including fileNode
 }
 
 interface StackEntry {
-  node: AttrNode;
+  node: VaultNode;
   headingLevel?: number; // only for heading nodes
   bulletDepth?: number; // only for bullet nodes
 }
@@ -41,7 +42,7 @@ export function parseFile(
     for (let i = 1; i < lines.length; i++) {
       if (FRONTMATTER_FENCE.test(lines[i])) {
         bodyStart = i + 1;
-        parseAvFrontmatter(lines.slice(1, i), dimensions, ownDims);
+        parseDimensionsFrontmatter(lines.slice(1, i), dimensions, ownDims);
         break;
       }
     }
@@ -57,14 +58,14 @@ export function parseFile(
   });
   fileNode.ownDimensions = ownDims;
 
-  const nodes: AttrNode[] = [fileNode];
+  const nodes: VaultNode[] = [fileNode];
 
   // ---- Body walk ----
   const stack: StackEntry[] = [{ node: fileNode }];
 
   const peek = () => stack[stack.length - 1];
 
-  const attachUnderCurrent = (child: AttrNode) => {
+  const attachUnderCurrent = (child: VaultNode) => {
     const parent = peek().node;
     child.parentId = parent.id;
     parent.childIds.push(child.id);
@@ -254,12 +255,12 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-// Minimal, tolerant YAML subset parser for frontmatter's `av:` block.
-// Supports either inline form `av: { priority: p0 }` or nested form:
-//   av:
+// Minimal, tolerant YAML subset parser for frontmatter's `dimensions:` block.
+// Supports either inline form `dimensions: { priority: p0 }` or nested form:
+//   dimensions:
 //     priority: p0
 //     timeframe: week
-function parseAvFrontmatter(
+function parseDimensionsFrontmatter(
   fmLines: string[],
   dimensions: Dimension[],
   out: Map<DimensionId, ValueId>,
@@ -269,12 +270,12 @@ function parseAvFrontmatter(
     const line = raw.replace(/\r$/, "");
     if (!inBlock) {
       // Inline form
-      const inlineMatch = line.match(/^av\s*:\s*\{(.+)\}\s*$/);
+      const inlineMatch = line.match(/^dimensions\s*:\s*\{(.+)\}\s*$/);
       if (inlineMatch) {
         parseInlinePairs(inlineMatch[1], dimensions, out);
         continue;
       }
-      if (/^av\s*:\s*$/.test(line)) {
+      if (/^dimensions\s*:\s*$/.test(line)) {
         inBlock = true;
         continue;
       }

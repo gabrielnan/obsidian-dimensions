@@ -1,12 +1,12 @@
 // Group-by view: renders the unified vault tree re-grouped by the values
-// of a chosen attribute, constrained to a selected scope (vault / folder / file).
+// of a chosen dimension, constrained to a selected scope (vault / folder / file).
 
 import { ItemView, WorkspaceLeaf, TFolder, TFile } from "obsidian";
-import { AttrNode, Dimension, NodeFilter, VAULT_ROOT_ID, fileId, folderId } from "../model";
-import { AttrIndex } from "../index-store";
+import { VaultNode, Dimension, NodeFilter, VAULT_ROOT_ID, fileId, folderId } from "../model";
+import { VaultIndex } from "../index-store";
 import { renderNodeList } from "./tree-renderer";
 
-export const GROUP_VIEW_TYPE = "av-group-view";
+export const GROUP_VIEW_TYPE = "dim-group-view";
 
 interface ViewState {
   scopeId: string;
@@ -15,14 +15,14 @@ interface ViewState {
 }
 
 export class GroupByView extends ItemView {
-  private index: AttrIndex;
+  private index: VaultIndex;
   private dimensions: Dimension[];
   private state: ViewState;
   private unsubscribe: (() => void) | null = null;
 
   constructor(
     leaf: WorkspaceLeaf,
-    index: AttrIndex,
+    index: VaultIndex,
     dimensions: Dimension[],
     initialDimensionId: string,
   ) {
@@ -40,7 +40,7 @@ export class GroupByView extends ItemView {
     return GROUP_VIEW_TYPE;
   }
   getDisplayText(): string {
-    return "Attribute Views — Group by";
+    return "Dimensions — Group by";
   }
   getIcon(): string {
     return "layers";
@@ -67,17 +67,17 @@ export class GroupByView extends ItemView {
   refresh(): void {
     const container = this.containerEl.children[1] as HTMLElement;
     container.empty();
-    container.addClass("av-view");
+    container.addClass("dim-view");
 
     this.renderControls(container);
     this.renderGroups(container);
   }
 
   private renderControls(container: HTMLElement): void {
-    const controls = container.createDiv({ cls: "av-controls" });
+    const controls = container.createDiv({ cls: "dim-controls" });
 
     // Dimension selector
-    const dimRow = controls.createDiv({ cls: "av-control-row" });
+    const dimRow = controls.createDiv({ cls: "dim-control-row" });
     dimRow.createEl("label", { text: "Group by" });
     const dimSelect = dimRow.createEl("select");
     for (const dim of this.dimensions) {
@@ -90,7 +90,7 @@ export class GroupByView extends ItemView {
     });
 
     // Scope selector
-    const scopeRow = controls.createDiv({ cls: "av-control-row" });
+    const scopeRow = controls.createDiv({ cls: "dim-control-row" });
     scopeRow.createEl("label", { text: "Scope" });
     const scopeSelect = scopeRow.createEl("select");
 
@@ -105,7 +105,7 @@ export class GroupByView extends ItemView {
     });
 
     // Node type filter
-    const typeRow = controls.createDiv({ cls: "av-control-row" });
+    const typeRow = controls.createDiv({ cls: "dim-control-row" });
     typeRow.createEl("label", { text: "Show" });
     const typeSelect = typeRow.createEl("select");
     for (const [value, label] of [
@@ -149,7 +149,7 @@ export class GroupByView extends ItemView {
   private renderGroups(container: HTMLElement): void {
     const dim = this.dimensions.find((d) => d.id === this.state.dimensionId);
     if (!dim) {
-      container.createDiv({ cls: "av-empty", text: "No attributes configured." });
+      container.createDiv({ cls: "dim-empty", text: "No dimensions configured." });
       return;
     }
 
@@ -180,7 +180,7 @@ export class GroupByView extends ItemView {
       this.renderGroup(container, dim, "__unset__", "(unset)", "#666", unset);
     }
     if (!anyRendered) {
-      container.createDiv({ cls: "av-empty", text: "No nodes in this scope." });
+      container.createDiv({ cls: "dim-empty", text: "No nodes in this scope." });
     }
   }
 
@@ -190,16 +190,16 @@ export class GroupByView extends ItemView {
     valueId: string,
     label: string,
     color: string,
-    nodes: AttrNode[],
+    nodes: VaultNode[],
   ): void {
-    const group = container.createDiv({ cls: "av-group" });
-    const header = group.createDiv({ cls: "av-group-header" });
-    const swatch = header.createSpan({ cls: "av-group-swatch" });
+    const group = container.createDiv({ cls: "dim-group" });
+    const header = group.createDiv({ cls: "dim-group-header" });
+    const swatch = header.createSpan({ cls: "dim-group-swatch" });
     swatch.style.background = color;
     header.createSpan({ text: label });
-    header.createSpan({ cls: "av-group-count", text: String(nodes.length) });
+    header.createSpan({ cls: "dim-group-count", text: String(nodes.length) });
 
-    const body = group.createDiv({ cls: "av-group-body" });
+    const body = group.createDiv({ cls: "dim-group-body" });
 
     header.addEventListener("click", () => {
       group.toggleClass("is-collapsed", !group.hasClass("is-collapsed"));

@@ -1,4 +1,4 @@
-// Core data model for Attribute Views.
+// Core data model for Dimensions.
 // A single unified semantic tree spans the whole vault:
 //   folder → file → heading → label → bullet
 // Every node can carry dimension values; descendants inherit them.
@@ -18,11 +18,11 @@ export interface Dimension {
   id: DimensionId; // e.g. "priority"
   label: string; // e.g. "Priority"
   tagPrefix: string; // e.g. "p"  → matches #p/<value>
-  frontmatterKey: string; // e.g. "priority" under the `av:` block
+  frontmatterKey: string; // e.g. "priority" under the `dimensions:` block
   values: DimensionValue[];
 }
 
-export interface AttrNode {
+export interface VaultNode {
   id: string; // stable id: "folder:<path>" | "file:<path>" | "<path>#L<line>"
   type: NodeType;
   title: string; // display text
@@ -63,7 +63,7 @@ export function lineNodeId(path: string, line: number): string {
   return `${path}#L${line}`;
 }
 
-export function newNode(partial: Partial<AttrNode> & { id: string; type: NodeType; title: string }): AttrNode {
+export function newNode(partial: Partial<VaultNode> & { id: string; type: NodeType; title: string }): VaultNode {
   return {
     rawText: partial.title,
     parentId: null,

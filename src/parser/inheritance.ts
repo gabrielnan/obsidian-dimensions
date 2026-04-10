@@ -2,19 +2,19 @@
 // For each node, effectiveDimensions = parent.effectiveDimensions merged with node.ownDimensions
 // (node's own value overrides inherited).
 
-import { AttrNode } from "../model";
+import { VaultNode } from "../model";
 
 export function propagate(
-  root: AttrNode,
-  getNode: (id: string) => AttrNode | undefined,
+  root: VaultNode,
+  getNode: (id: string) => VaultNode | undefined,
 ): void {
   walk(root, new Map(), getNode);
 }
 
 function walk(
-  node: AttrNode,
+  node: VaultNode,
   inherited: Map<string, string>,
-  getNode: (id: string) => AttrNode | undefined,
+  getNode: (id: string) => VaultNode | undefined,
 ): void {
   const effective = new Map(inherited);
   for (const [k, v] of node.ownDimensions) effective.set(k, v);

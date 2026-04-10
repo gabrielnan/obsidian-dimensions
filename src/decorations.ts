@@ -9,11 +9,11 @@ import {
   ViewPlugin,
   ViewUpdate,
 } from "@codemirror/view";
-import { AttrIndex } from "./index-store";
+import { VaultIndex } from "./index-store";
 import { Dimension } from "./model";
 
 export interface ColoringContext {
-  index: AttrIndex;
+  index: VaultIndex;
   dimensions: Dimension[];
   activeDimensionId: string | null;
   getActiveFilePath: () => string | null;
@@ -59,7 +59,7 @@ export function createColoringExtension(ctx: ColoringContext): Extension {
               builder.add(
                 line.from,
                 line.from,
-                Decoration.line({ class: `av-dim-${activeDim.id}-${valueId}` }),
+                Decoration.line({ class: `dim-${activeDim.id}-${valueId}` }),
               );
             }
             pos = line.to + 1;

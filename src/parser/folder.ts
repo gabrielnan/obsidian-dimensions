@@ -1,16 +1,16 @@
 // Folder parser: creates folder nodes and reads folder-level dimensions
-// from an `av:` block in `_context.md` frontmatter (or a `_dimensions.yaml` sidecar later).
+// from a `dimensions:` block in `_context.md` frontmatter (or a `_dimensions.yaml` sidecar later).
 
 import { Vault, TFile, TFolder } from "obsidian";
-import { AttrNode, Dimension, VAULT_ROOT_ID, folderId, newNode } from "../model";
-import { parseAvFrontmatterForFolder } from "./folder-frontmatter";
+import { VaultNode, Dimension, VAULT_ROOT_ID, folderId, newNode } from "../model";
+import { parseDimensionsFrontmatterForFolder } from "./folder-frontmatter";
 
 export async function parseFolder(
   folder: TFolder,
   vault: Vault,
   dimensions: Dimension[],
   parentId: string | null,
-): Promise<AttrNode> {
+): Promise<VaultNode> {
   const isRoot = folder.isRoot();
   const id = isRoot ? VAULT_ROOT_ID : folderId(folder.path);
 
@@ -29,7 +29,7 @@ export async function parseFolder(
   if (contextFile) {
     try {
       const content = await vault.cachedRead(contextFile);
-      node.ownDimensions = parseAvFrontmatterForFolder(content, dimensions);
+      node.ownDimensions = parseDimensionsFrontmatterForFolder(content, dimensions);
     } catch {
       // ignore
     }

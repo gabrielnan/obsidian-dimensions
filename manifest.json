@@ -1,9 +1,9 @@
 {
-  "id": "obsidian-attribute-views",
-  "name": "Attribute Views",
+  "id": "obsidian-dimensions",
+  "name": "Dimensions",
   "version": "0.1.0",
   "minAppVersion": "1.4.0",
-  "description": "Multi-dimensional views over a unified vault hierarchy (folder → file → heading → label → bullet) with inherited tag-based attributes like priority and timeframe.",
+  "description": "Multi-dimensional views over a unified vault hierarchy (folder → file → heading → label → bullet) with inherited tag-based dimensions like priority and timeframe.",
   "author": "Gabriel Nakajima An",
   "isDesktopOnly": false
 }
