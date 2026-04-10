@@ -9,11 +9,11 @@ import {
   ViewPlugin,
   ViewUpdate,
 } from "@codemirror/view";
-import { AtlasIndex } from "./index-store";
+import { AttrIndex } from "./index-store";
 import { Dimension } from "./model";
 
 export interface ColoringContext {
-  index: AtlasIndex;
+  index: AttrIndex;
   dimensions: Dimension[];
   activeDimensionId: string | null;
   getActiveFilePath: () => string | null;
@@ -59,7 +59,7 @@ export function createColoringExtension(ctx: ColoringContext): Extension {
               builder.add(
                 line.from,
                 line.from,
-                Decoration.line({ class: `atlas-dim-${activeDim.id}-${valueId}` }),
+                Decoration.line({ class: `av-dim-${activeDim.id}-${valueId}` }),
               );
             }
             pos = line.to + 1;

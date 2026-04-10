@@ -3,7 +3,7 @@
 
 import { App, TFile, TFolder, debounce } from "obsidian";
 import {
-  AtlasNode,
+  AttrNode,
   Dimension,
   DimensionId,
   NodeFilter,
@@ -16,12 +16,12 @@ import {
 import { parseFile } from "./parser/file";
 import { parseFolder } from "./parser/folder";
 import { propagate } from "./parser/inheritance";
-import { parseAtlasFrontmatterForFolder } from "./parser/folder-frontmatter";
+import { parseAvFrontmatterForFolder } from "./parser/folder-frontmatter";
 
 type ChangeListener = () => void;
 
-export class AtlasIndex {
-  private nodes = new Map<string, AtlasNode>();
+export class AttrIndex {
+  private nodes = new Map<string, AttrNode>();
   private rootId = VAULT_ROOT_ID;
   private dimensions: Dimension[];
   private listeners = new Set<ChangeListener>();
@@ -43,22 +43,22 @@ export class AtlasIndex {
     return () => this.listeners.delete(listener);
   }
 
-  getRoot(): AtlasNode | undefined {
+  getRoot(): AttrNode | undefined {
     return this.nodes.get(this.rootId);
   }
 
-  getNode(id: string): AtlasNode | undefined {
+  getNode(id: string): AttrNode | undefined {
     return this.nodes.get(id);
   }
 
-  getChildren(id: string): AtlasNode[] {
+  getChildren(id: string): AttrNode[] {
     const node = this.nodes.get(id);
     if (!node) return [];
-    return node.childIds.map((cid) => this.nodes.get(cid)).filter((n): n is AtlasNode => !!n);
+    return node.childIds.map((cid) => this.nodes.get(cid)).filter((n): n is AttrNode => !!n);
   }
 
-  getAncestors(id: string): AtlasNode[] {
-    const out: AtlasNode[] = [];
+  getAncestors(id: string): AttrNode[] {
+    const out: AttrNode[] = [];
     let cur = this.nodes.get(id);
     while (cur && cur.parentId) {
       const parent = this.nodes.get(cur.parentId);
@@ -69,7 +69,7 @@ export class AtlasIndex {
     return out.reverse();
   }
 
-  nodeAtLine(filePath: string, line: number): AtlasNode | undefined {
+  nodeAtLine(filePath: string, line: number): AttrNode | undefined {
     // Linear scan over the file's nodes. Fine for small files; can be indexed later.
     for (const node of this.nodes.values()) {
       if (node.filePath === filePath && node.line === line) return node;
@@ -77,8 +77,8 @@ export class AtlasIndex {
     return undefined;
   }
 
-  nodesInFile(filePath: string): AtlasNode[] {
-    const result: AtlasNode[] = [];
+  nodesInFile(filePath: string): AttrNode[] {
+    const result: AttrNode[] = [];
     for (const node of this.nodes.values()) {
       if (node.filePath === filePath && node.line !== null) result.push(node);
     }
@@ -140,7 +140,7 @@ export class AtlasIndex {
       const folderNode = this.nodes.get(fId);
       if (folderNode) {
         const content = await this.app.vault.cachedRead(file);
-        folderNode.ownDimensions = parseAtlasFrontmatterForFolder(content, this.dimensions);
+        folderNode.ownDimensions = parseAvFrontmatterForFolder(content, this.dimensions);
         this.runInheritance();
         this.notify();
       }
@@ -226,13 +226,13 @@ export class AtlasIndex {
 
   // ---- Query API ----
 
-  query(filter: NodeFilter): AtlasNode[] {
+  query(filter: NodeFilter): AttrNode[] {
     const scopeId = filter.scopeId ?? this.rootId;
     const scope = this.nodes.get(scopeId);
     if (!scope) return [];
 
-    const result: AtlasNode[] = [];
-    const visit = (node: AtlasNode) => {
+    const result: AttrNode[] = [];
+    const visit = (node: AttrNode) => {
       if (this.matches(node, filter)) result.push(node);
       for (const childId of node.childIds) {
         const child = this.nodes.get(childId);
@@ -243,7 +243,7 @@ export class AtlasIndex {
     return result;
   }
 
-  private matches(node: AtlasNode, filter: NodeFilter): boolean {
+  private matches(node: AttrNode, filter: NodeFilter): boolean {
     if (filter.nodeTypes && !filter.nodeTypes.includes(node.type)) return false;
     if (filter.dimensionFilters) {
       for (const [dimId, values] of Object.entries(filter.dimensionFilters)) {
@@ -259,8 +259,8 @@ export class AtlasIndex {
   groupByDimension(
     dimensionId: DimensionId,
     filter: NodeFilter,
-  ): Map<ValueId | "__unset__", AtlasNode[]> {
-    const out = new Map<ValueId | "__unset__", AtlasNode[]>();
+  ): Map<ValueId | "__unset__", AttrNode[]> {
+    const out = new Map<ValueId | "__unset__", AttrNode[]>();
     for (const node of this.query(filter)) {
       const v = node.effectiveDimensions.get(dimensionId) ?? "__unset__";
       const arr = out.get(v) ?? [];

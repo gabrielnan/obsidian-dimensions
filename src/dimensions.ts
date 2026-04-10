@@ -1,4 +1,4 @@
-// Hardcoded seed dimensions for Phase 1.
+// Hardcoded seed attributes for Phase 1.
 // In Phase 2 these become user-editable in the settings tab.
 
 import { Dimension } from "./model";

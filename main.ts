@@ -1,30 +1,30 @@
-// Atlas Dimensions — plugin entry point.
+// Attribute Views — plugin entry point.
 
 import { Plugin, TFile, WorkspaceLeaf, Notice } from "obsidian";
 import { Extension } from "@codemirror/state";
-import { AtlasIndex } from "./src/index-store";
+import { AttrIndex } from "./src/index-store";
 import { SEED_DIMENSIONS } from "./src/dimensions";
 import { createColoringExtension } from "./src/decorations";
 import { GroupByView, GROUP_VIEW_TYPE } from "./src/views/group-view";
 
-interface AtlasDimensionsSettings {
+interface AttributeViewsSettings {
   activeColoringDimension: string | null;
 }
 
-const DEFAULT_SETTINGS: AtlasDimensionsSettings = {
+const DEFAULT_SETTINGS: AttributeViewsSettings = {
   activeColoringDimension: "priority",
 };
 
-export default class AtlasDimensionsPlugin extends Plugin {
-  settings!: AtlasDimensionsSettings;
-  index!: AtlasIndex;
+export default class AttributeViewsPlugin extends Plugin {
+  settings!: AttributeViewsSettings;
+  index!: AttrIndex;
   private editorExtensions: Extension[] = [];
 
   async onload(): Promise<void> {
-    console.log("[Atlas Dimensions] loading");
+    console.log("[Attribute Views] loading");
     await this.loadSettings();
 
-    this.index = new AtlasIndex(this.app, SEED_DIMENSIONS);
+    this.index = new AttrIndex(this.app, SEED_DIMENSIONS);
 
     // Register the group-by view.
     this.registerView(
@@ -96,7 +96,7 @@ export default class AtlasDimensionsPlugin extends Plugin {
     });
     this.addCommand({
       id: "cycle-coloring-dimension",
-      name: "Cycle active coloring dimension",
+      name: "Cycle active coloring attribute",
       callback: () => this.cycleColoringDimension(),
     });
     this.addCommand({
@@ -104,17 +104,17 @@ export default class AtlasDimensionsPlugin extends Plugin {
       name: "Reindex vault",
       callback: async () => {
         await this.index.rebuildAll();
-        new Notice("Atlas Dimensions: reindexed");
+        new Notice("Attribute Views: reindexed");
         this.refreshEditors();
       },
     });
 
     // Ribbon icon for quick access
-    this.addRibbonIcon("layers", "Atlas Dimensions: Group by", () => this.activateGroupView());
+    this.addRibbonIcon("layers", "Attribute Views: Group by", () => this.activateGroupView());
   }
 
   async onunload(): Promise<void> {
-    console.log("[Atlas Dimensions] unloading");
+    console.log("[Attribute Views] unloading");
   }
 
   async loadSettings(): Promise<void> {
@@ -156,7 +156,7 @@ export default class AtlasDimensionsPlugin extends Plugin {
     this.editorExtensions.push(ext);
     this.app.workspace.updateOptions();
     this.refreshEditors();
-    new Notice(`Atlas Dimensions: coloring = ${next ?? "off"}`);
+    new Notice(`Attribute Views: coloring = ${next ?? "off"}`);
   }
 
   private refreshEditors(): void {
@@ -170,7 +170,7 @@ export default class AtlasDimensionsPlugin extends Plugin {
       const cm = view?.editor?.cm;
       if (cm) {
         try {
-          cm.dispatch({ userEvent: "atlas-refresh" });
+          cm.dispatch({ userEvent: "av-refresh" });
         } catch {
           // no-op
         }

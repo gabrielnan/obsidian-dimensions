@@ -1,12 +1,12 @@
 // Group-by view: renders the unified vault tree re-grouped by the values
-// of a chosen dimension, constrained to a selected scope (vault / folder / file).
+// of a chosen attribute, constrained to a selected scope (vault / folder / file).
 
 import { ItemView, WorkspaceLeaf, TFolder, TFile } from "obsidian";
-import { AtlasNode, Dimension, NodeFilter, VAULT_ROOT_ID, fileId, folderId } from "../model";
-import { AtlasIndex } from "../index-store";
+import { AttrNode, Dimension, NodeFilter, VAULT_ROOT_ID, fileId, folderId } from "../model";
+import { AttrIndex } from "../index-store";
 import { renderNodeList } from "./tree-renderer";
 
-export const GROUP_VIEW_TYPE = "atlas-group-view";
+export const GROUP_VIEW_TYPE = "av-group-view";
 
 interface ViewState {
   scopeId: string;
@@ -15,14 +15,14 @@ interface ViewState {
 }
 
 export class GroupByView extends ItemView {
-  private index: AtlasIndex;
+  private index: AttrIndex;
   private dimensions: Dimension[];
   private state: ViewState;
   private unsubscribe: (() => void) | null = null;
 
   constructor(
     leaf: WorkspaceLeaf,
-    index: AtlasIndex,
+    index: AttrIndex,
     dimensions: Dimension[],
     initialDimensionId: string,
   ) {
@@ -40,7 +40,7 @@ export class GroupByView extends ItemView {
     return GROUP_VIEW_TYPE;
   }
   getDisplayText(): string {
-    return "Atlas — Group by";
+    return "Attribute Views — Group by";
   }
   getIcon(): string {
     return "layers";
@@ -67,17 +67,17 @@ export class GroupByView extends ItemView {
   refresh(): void {
     const container = this.containerEl.children[1] as HTMLElement;
     container.empty();
-    container.addClass("atlas-view");
+    container.addClass("av-view");
 
     this.renderControls(container);
     this.renderGroups(container);
   }
 
   private renderControls(container: HTMLElement): void {
-    const controls = container.createDiv({ cls: "atlas-controls" });
+    const controls = container.createDiv({ cls: "av-controls" });
 
     // Dimension selector
-    const dimRow = controls.createDiv({ cls: "atlas-control-row" });
+    const dimRow = controls.createDiv({ cls: "av-control-row" });
     dimRow.createEl("label", { text: "Group by" });
     const dimSelect = dimRow.createEl("select");
     for (const dim of this.dimensions) {
@@ -90,7 +90,7 @@ export class GroupByView extends ItemView {
     });
 
     // Scope selector
-    const scopeRow = controls.createDiv({ cls: "atlas-control-row" });
+    const scopeRow = controls.createDiv({ cls: "av-control-row" });
     scopeRow.createEl("label", { text: "Scope" });
     const scopeSelect = scopeRow.createEl("select");
 
@@ -105,7 +105,7 @@ export class GroupByView extends ItemView {
     });
 
     // Node type filter
-    const typeRow = controls.createDiv({ cls: "atlas-control-row" });
+    const typeRow = controls.createDiv({ cls: "av-control-row" });
     typeRow.createEl("label", { text: "Show" });
     const typeSelect = typeRow.createEl("select");
     for (const [value, label] of [
@@ -149,7 +149,7 @@ export class GroupByView extends ItemView {
   private renderGroups(container: HTMLElement): void {
     const dim = this.dimensions.find((d) => d.id === this.state.dimensionId);
     if (!dim) {
-      container.createDiv({ cls: "atlas-empty", text: "No dimensions configured." });
+      container.createDiv({ cls: "av-empty", text: "No attributes configured." });
       return;
     }
 
@@ -180,7 +180,7 @@ export class GroupByView extends ItemView {
       this.renderGroup(container, dim, "__unset__", "(unset)", "#666", unset);
     }
     if (!anyRendered) {
-      container.createDiv({ cls: "atlas-empty", text: "No nodes in this scope." });
+      container.createDiv({ cls: "av-empty", text: "No nodes in this scope." });
     }
   }
 
@@ -190,16 +190,16 @@ export class GroupByView extends ItemView {
     valueId: string,
     label: string,
     color: string,
-    nodes: AtlasNode[],
+    nodes: AttrNode[],
   ): void {
-    const group = container.createDiv({ cls: "atlas-group" });
-    const header = group.createDiv({ cls: "atlas-group-header" });
-    const swatch = header.createSpan({ cls: "atlas-group-swatch" });
+    const group = container.createDiv({ cls: "av-group" });
+    const header = group.createDiv({ cls: "av-group-header" });
+    const swatch = header.createSpan({ cls: "av-group-swatch" });
     swatch.style.background = color;
     header.createSpan({ text: label });
-    header.createSpan({ cls: "atlas-group-count", text: String(nodes.length) });
+    header.createSpan({ cls: "av-group-count", text: String(nodes.length) });
 
-    const body = group.createDiv({ cls: "atlas-group-body" });
+    const body = group.createDiv({ cls: "av-group-body" });
 
     header.addEventListener("click", () => {
       group.toggleClass("is-collapsed", !group.hasClass("is-collapsed"));

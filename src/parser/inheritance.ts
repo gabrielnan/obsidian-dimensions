@@ -2,19 +2,19 @@
 // For each node, effectiveDimensions = parent.effectiveDimensions merged with node.ownDimensions
 // (node's own value overrides inherited).
 
-import { AtlasNode } from "../model";
+import { AttrNode } from "../model";
 
 export function propagate(
-  root: AtlasNode,
-  getNode: (id: string) => AtlasNode | undefined,
+  root: AttrNode,
+  getNode: (id: string) => AttrNode | undefined,
 ): void {
   walk(root, new Map(), getNode);
 }
 
 function walk(
-  node: AtlasNode,
+  node: AttrNode,
   inherited: Map<string, string>,
-  getNode: (id: string) => AtlasNode | undefined,
+  getNode: (id: string) => AttrNode | undefined,
 ): void {
   const effective = new Map(inherited);
   for (const [k, v] of node.ownDimensions) effective.set(k, v);

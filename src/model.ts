@@ -1,4 +1,4 @@
-// Core data model for Atlas Dimensions.
+// Core data model for Attribute Views.
 // A single unified semantic tree spans the whole vault:
 //   folder → file → heading → label → bullet
 // Every node can carry dimension values; descendants inherit them.
@@ -18,11 +18,11 @@ export interface Dimension {
   id: DimensionId; // e.g. "priority"
   label: string; // e.g. "Priority"
   tagPrefix: string; // e.g. "p"  → matches #p/<value>
-  frontmatterKey: string; // e.g. "priority" under the `atlas:` block
+  frontmatterKey: string; // e.g. "priority" under the `av:` block
   values: DimensionValue[];
 }
 
-export interface AtlasNode {
+export interface AttrNode {
   id: string; // stable id: "folder:<path>" | "file:<path>" | "<path>#L<line>"
   type: NodeType;
   title: string; // display text
@@ -63,7 +63,7 @@ export function lineNodeId(path: string, line: number): string {
   return `${path}#L${line}`;
 }
 
-export function newNode(partial: Partial<AtlasNode> & { id: string; type: NodeType; title: string }): AtlasNode {
+export function newNode(partial: Partial<AttrNode> & { id: string; type: NodeType; title: string }): AttrNode {
   return {
     rawText: partial.title,
     parentId: null,

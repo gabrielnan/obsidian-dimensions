@@ -1,9 +1,9 @@
-// Shared helper for rendering a list of AtlasNodes into a DOM container,
+// Shared helper for rendering a list of AttrNodes into a DOM container,
 // preserving local sub-hierarchy where children also match the current filter.
 
 import { App, MarkdownView, WorkspaceLeaf } from "obsidian";
-import { AtlasNode } from "../model";
-import { AtlasIndex } from "../index-store";
+import { AttrNode } from "../model";
+import { AttrIndex } from "../index-store";
 
 export interface RenderOptions {
   showBreadcrumbs?: boolean;
@@ -11,16 +11,16 @@ export interface RenderOptions {
 
 export function renderNodeList(
   app: App,
-  index: AtlasIndex,
+  index: AttrIndex,
   container: HTMLElement,
-  nodes: AtlasNode[],
+  nodes: AttrNode[],
   options: RenderOptions = {},
 ): void {
   // Group by file for readability. Nodes without a file (folder nodes) go under a synthetic group.
   const matchSet = new Set(nodes.map((n) => n.id));
 
   // Identify top-level matches: a node is "top-level" if none of its ancestors are also in the match set.
-  const topLevel: AtlasNode[] = [];
+  const topLevel: AttrNode[] = [];
   for (const node of nodes) {
     let anc = node.parentId ? index.getNode(node.parentId) : undefined;
     let covered = false;
@@ -35,7 +35,7 @@ export function renderNodeList(
   }
 
   if (topLevel.length === 0) {
-    const empty = container.createDiv({ cls: "atlas-empty" });
+    const empty = container.createDiv({ cls: "av-empty" });
     empty.setText("No matches.");
     return;
   }
@@ -47,22 +47,22 @@ export function renderNodeList(
 
 function renderOne(
   app: App,
-  index: AtlasIndex,
+  index: AttrIndex,
   container: HTMLElement,
-  node: AtlasNode,
+  node: AttrNode,
   matchSet: Set<string>,
   options: RenderOptions,
 ): void {
-  const el = container.createDiv({ cls: `atlas-node atlas-node-type-${node.type}` });
+  const el = container.createDiv({ cls: `av-node av-node-type-${node.type}` });
 
   if (options.showBreadcrumbs) {
     const crumb = buildBreadcrumb(index, node);
     if (crumb) {
-      el.createDiv({ cls: "atlas-node-breadcrumb", text: crumb });
+      el.createDiv({ cls: "av-node-breadcrumb", text: crumb });
     }
   }
 
-  const title = el.createSpan({ cls: "atlas-node-title" });
+  const title = el.createSpan({ cls: "av-node-title" });
   title.setText(prefixForType(node) + node.title);
 
   el.addEventListener("click", (e) => {
@@ -73,16 +73,16 @@ function renderOne(
   // Render children that also matched (preserve local sub-hierarchy)
   const childMatches = node.childIds
     .map((cid) => index.getNode(cid))
-    .filter((c): c is AtlasNode => !!c && matchSet.has(c.id));
+    .filter((c): c is AttrNode => !!c && matchSet.has(c.id));
   if (childMatches.length > 0) {
-    const childContainer = el.createDiv({ cls: "atlas-node-children" });
+    const childContainer = el.createDiv({ cls: "av-node-children" });
     for (const child of childMatches) {
       renderOne(app, index, childContainer, child, matchSet, { ...options, showBreadcrumbs: false });
     }
   }
 }
 
-function prefixForType(node: AtlasNode): string {
+function prefixForType(node: AttrNode): string {
   switch (node.type) {
     case "heading":
       return "#".repeat(node.depth || 1) + " ";
@@ -97,7 +97,7 @@ function prefixForType(node: AtlasNode): string {
   }
 }
 
-export function buildBreadcrumb(index: AtlasIndex, node: AtlasNode): string {
+export function buildBreadcrumb(index: AttrIndex, node: AttrNode): string {
   const ancestors = index.getAncestors(node.id);
   // Drop the vault root for cleanliness.
   const parts: string[] = [];
@@ -108,7 +108,7 @@ export function buildBreadcrumb(index: AtlasIndex, node: AtlasNode): string {
   return parts.join(" › ");
 }
 
-export async function openNode(app: App, node: AtlasNode): Promise<void> {
+export async function openNode(app: App, node: AttrNode): Promise<void> {
   if (!node.filePath) return;
   const file = app.vault.getAbstractFileByPath(node.filePath);
   if (!file || !("extension" in file)) return;

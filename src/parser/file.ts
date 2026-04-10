@@ -1,16 +1,16 @@
-// Parse a single markdown file into a subtree of AtlasNodes.
+// Parse a single markdown file into a subtree of AttrNodes.
 // Handles YAML frontmatter (for file-level dimensions), headings, "label" lines,
 // and bullet lists with inheritance-friendly parent/child linking.
 
-import { AtlasNode, Dimension, DimensionId, ValueId, fileId, lineNodeId, newNode } from "../model";
+import { AttrNode, Dimension, DimensionId, ValueId, fileId, lineNodeId, newNode } from "../model";
 
 export interface FileParseResult {
-  fileNode: AtlasNode;
-  nodes: AtlasNode[]; // all nodes created for this file, including fileNode
+  fileNode: AttrNode;
+  nodes: AttrNode[]; // all nodes created for this file, including fileNode
 }
 
 interface StackEntry {
-  node: AtlasNode;
+  node: AttrNode;
   headingLevel?: number; // only for heading nodes
   bulletDepth?: number; // only for bullet nodes
 }
@@ -41,7 +41,7 @@ export function parseFile(
     for (let i = 1; i < lines.length; i++) {
       if (FRONTMATTER_FENCE.test(lines[i])) {
         bodyStart = i + 1;
-        parseAtlasFrontmatter(lines.slice(1, i), dimensions, ownDims);
+        parseAvFrontmatter(lines.slice(1, i), dimensions, ownDims);
         break;
       }
     }
@@ -57,14 +57,14 @@ export function parseFile(
   });
   fileNode.ownDimensions = ownDims;
 
-  const nodes: AtlasNode[] = [fileNode];
+  const nodes: AttrNode[] = [fileNode];
 
   // ---- Body walk ----
   const stack: StackEntry[] = [{ node: fileNode }];
 
   const peek = () => stack[stack.length - 1];
 
-  const attachUnderCurrent = (child: AtlasNode) => {
+  const attachUnderCurrent = (child: AttrNode) => {
     const parent = peek().node;
     child.parentId = parent.id;
     parent.childIds.push(child.id);
@@ -254,12 +254,12 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-// Minimal, tolerant YAML subset parser for frontmatter's `atlas:` block.
-// Supports either inline form `atlas: { priority: p0 }` or nested form:
-//   atlas:
+// Minimal, tolerant YAML subset parser for frontmatter's `av:` block.
+// Supports either inline form `av: { priority: p0 }` or nested form:
+//   av:
 //     priority: p0
 //     timeframe: week
-function parseAtlasFrontmatter(
+function parseAvFrontmatter(
   fmLines: string[],
   dimensions: Dimension[],
   out: Map<DimensionId, ValueId>,
@@ -269,12 +269,12 @@ function parseAtlasFrontmatter(
     const line = raw.replace(/\r$/, "");
     if (!inBlock) {
       // Inline form
-      const inlineMatch = line.match(/^atlas\s*:\s*\{(.+)\}\s*$/);
+      const inlineMatch = line.match(/^av\s*:\s*\{(.+)\}\s*$/);
       if (inlineMatch) {
         parseInlinePairs(inlineMatch[1], dimensions, out);
         continue;
       }
-      if (/^atlas\s*:\s*$/.test(line)) {
+      if (/^av\s*:\s*$/.test(line)) {
         inBlock = true;
         continue;
       }

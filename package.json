@@ -1,5 +1,5 @@
 {
-  "name": "atlas-dimensions",
+  "name": "obsidian-attribute-views",
   "version": "0.1.0",
   "private": true,
   "description": "Multi-dimensional views over a unified vault hierarchy",

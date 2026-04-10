@@ -1,9 +1,9 @@
-// Shared helper: extract the `atlas:` frontmatter block from a markdown file's content.
+// Shared helper: extract the `av:` frontmatter block from a markdown file's content.
 // Used by the folder parser to read folder-level dimensions from _context.md.
 
 import { Dimension, DimensionId, ValueId } from "../model";
 
-export function parseAtlasFrontmatterForFolder(
+export function parseAvFrontmatterForFolder(
   content: string,
   dimensions: Dimension[],
 ): Map<DimensionId, ValueId> {
@@ -19,7 +19,7 @@ export function parseAtlasFrontmatterForFolder(
   for (const raw of fmLines) {
     const line = raw.replace(/\r$/, "");
     if (!inBlock) {
-      const inline = line.match(/^atlas\s*:\s*\{(.+)\}\s*$/);
+      const inline = line.match(/^av\s*:\s*\{(.+)\}\s*$/);
       if (inline) {
         for (const pair of inline[1].split(",")) {
           const m = pair.match(/^\s*([a-zA-Z0-9_\-]+)\s*:\s*([a-zA-Z0-9_\-]+)\s*$/);
@@ -27,7 +27,7 @@ export function parseAtlasFrontmatterForFolder(
         }
         continue;
       }
-      if (/^atlas\s*:\s*$/.test(line)) {
+      if (/^av\s*:\s*$/.test(line)) {
         inBlock = true;
         continue;
       }
