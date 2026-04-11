@@ -69,6 +69,7 @@ export function createColoringExtension(ctx: ColoringContext): Extension {
           update.docChanged ||
           update.viewportChanged ||
           update.geometryChanged ||
+          update.selectionSet ||
           triggered
         ) {
           this.decorations = this.build(update.view);
@@ -79,33 +80,64 @@ export function createColoringExtension(ctx: ColoringContext): Extension {
         const activeDimId = view.state.field(activeDimField);
         const activeDim = ctx.dimensions.find((d) => d.id === activeDimId);
         const filePath = ctx.getActiveFilePath();
-        if (!activeDim || !filePath) return builder.finish();
 
-        const nodes = ctx.index.nodesInFile(filePath);
-        if (nodes.length === 0) return builder.finish();
-
-        // Map line → value on active dim (only nodes with a line)
-        const byLine = new Map<number, string>();
-        for (const node of nodes) {
-          if (node.line === null) continue;
-          const v = node.effectiveDimensions.get(activeDim.id);
-          if (v) byLine.set(node.line, v);
+        // Line coloring map. Built only when there's an active dim with
+        // indexed nodes; otherwise coloring is skipped but tag-hiding still
+        // runs below.
+        let byLine: Map<number, string> | null = null;
+        if (activeDim && filePath) {
+          const nodes = ctx.index.nodesInFile(filePath);
+          if (nodes.length > 0) {
+            byLine = new Map();
+            for (const node of nodes) {
+              if (node.line === null) continue;
+              const v = node.effectiveDimensions.get(activeDim.id);
+              if (v) byLine.set(node.line, v);
+            }
+            if (byLine.size === 0) byLine = null;
+          }
         }
-        if (byLine.size === 0) return builder.finish();
+
+        // Lines containing a cursor — tags on these lines stay visible so
+        // the user can read/edit them. Multi-selection aware.
+        const cursorLines = new Set<number>();
+        for (const r of view.state.selection.ranges) {
+          cursorLines.add(view.state.doc.lineAt(r.head).number);
+        }
+
+        const hideRegex = buildAllDimsRegex(ctx.dimensions);
 
         for (const { from, to } of view.visibleRanges) {
           let pos = from;
           while (pos <= to) {
             const line = view.state.doc.lineAt(pos);
             const lineIdx = line.number - 1; // CodeMirror is 1-indexed
-            const valueId = byLine.get(lineIdx);
-            if (valueId) {
+
+            // Line decoration first (same-position decorations need line
+            // class to land before inline ranges).
+            const valueId = byLine?.get(lineIdx);
+            if (activeDim && valueId) {
               builder.add(
                 line.from,
                 line.from,
                 Decoration.line({ class: `dim-${activeDim.id}-${valueId}` }),
               );
             }
+
+            // Hide every dimension tag on lines that don't host a cursor.
+            // Replace (not mark) so the hidden span takes no layout space —
+            // the line reads clean as if the tag weren't there.
+            if (hideRegex && !cursorLines.has(line.number)) {
+              const text = line.text;
+              hideRegex.lastIndex = 0;
+              let m: RegExpExecArray | null;
+              while ((m = hideRegex.exec(text)) !== null) {
+                const start = line.from + m.index;
+                const end = start + m[0].length;
+                builder.add(start, end, Decoration.replace({}));
+              }
+            }
+
             pos = line.to + 1;
           }
         }
@@ -177,4 +209,22 @@ function createDimPanel(view: EditorView, ctx: ColoringContext): Panel {
       if (select.value !== current) select.value = current;
     },
   };
+}
+
+// Union regex over every registered dimension value id, used to find tag
+// spans to hide on non-cursor lines. Matches `#<id>` with optional leading
+// whitespace so replacing the range also absorbs the space in front of the
+// tag — keeps trailing text like `- foo #p0` from leaving a dangling space
+// after the replace. Tags not belonging to any dimension are ignored.
+function buildAllDimsRegex(dimensions: Dimension[]): RegExp | null {
+  const ids = dimensions
+    .flatMap((d) => d.values.map((v) => v.id))
+    .sort((a, b) => b.length - a.length)
+    .map(escapeRegex);
+  if (ids.length === 0) return null;
+  return new RegExp(`\\s?#(?:${ids.join("|")})(?=\\s|$|[^\\w-])`, "g");
+}
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
