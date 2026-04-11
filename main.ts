@@ -1,9 +1,9 @@
 // Dimensions — plugin entry point.
 
-import { Plugin, TFile, WorkspaceLeaf, Notice } from "obsidian";
+import { Editor, Plugin, TFile, WorkspaceLeaf, Notice } from "obsidian";
 import { TransactionSpec } from "@codemirror/state";
 import { VaultIndex } from "./src/index-store";
-import { Dimension } from "./src/model";
+import { Dimension, ValueId } from "./src/model";
 import {
   ColoringContext,
   createColoringExtension,
@@ -125,6 +125,16 @@ export default class DimensionsPlugin extends Plugin {
       callback: () => this.cycleColoringDimension(),
     });
     this.addCommand({
+      id: "cycle-line-value-next",
+      name: "Cycle current line value (next)",
+      editorCallback: (editor) => this.cycleLineValue(editor, 1),
+    });
+    this.addCommand({
+      id: "cycle-line-value-prev",
+      name: "Cycle current line value (previous)",
+      editorCallback: (editor) => this.cycleLineValue(editor, -1),
+    });
+    this.addCommand({
       id: "reindex-vault",
       name: "Reindex vault",
       callback: async () => {
@@ -236,6 +246,43 @@ export default class DimensionsPlugin extends Plugin {
     new Notice(`Dimensions: coloring = ${next ?? "off"}`);
   }
 
+  // Cycle the inline tag for the active coloring dimension on the cursor's
+  // current line. The cycle sequence is [unset, v0, v1, ...] in declared
+  // order; direction = +1 for next, -1 for previous. Only edits the current
+  // line — frontmatter-level dims (file tags) must be set via Obsidian's
+  // Properties UI.
+  private cycleLineValue(editor: Editor, direction: 1 | -1): void {
+    const activeId = this.settings.activeColoringDimension;
+    if (!activeId) {
+      new Notice("Dimensions: no active coloring dimension");
+      return;
+    }
+    const dim = this.dimensions.find((d) => d.id === activeId);
+    if (!dim || dim.values.length === 0) {
+      new Notice(`Dimensions: no values defined for "${activeId}"`);
+      return;
+    }
+
+    const cursor = editor.getCursor();
+    const lineNum = cursor.line;
+    const lineText = editor.getLine(lineNum);
+
+    const sequence: (ValueId | null)[] = [null, ...dim.values.map((v) => v.id)];
+    const current = extractDimTag(lineText, dim);
+    const curIdx = sequence.indexOf(current);
+    const nextIdx = (curIdx + direction + sequence.length) % sequence.length;
+    const next = sequence[nextIdx];
+
+    // Strip any existing tag for this dimension, then append the new one
+    // (if any) at end of line.
+    const stripped = stripDimTags(lineText, dim).replace(/[ \t]+$/, "");
+    const newLine = next ? `${stripped} #${next}` : stripped;
+    editor.setLine(lineNum, newLine);
+
+    const label = dim.values.find((v) => v.id === next)?.label ?? next ?? "(unset)";
+    new Notice(`${dim.label}: ${label}`);
+  }
+
   private refreshEditors(): void {
     // Trigger a decoration rebuild on every open editor.
     this.dispatchToEditors({ effects: refreshEffect.of() });
@@ -258,4 +305,42 @@ export default class DimensionsPlugin extends Plugin {
       }
     });
   }
+}
+
+// ---- Inline tag rewriting helpers (used by cycleLineValue) ----
+
+// Find the first value tag on `text` that belongs to `dim`. Returns its id
+// (e.g. "p0") or null if no tag for this dimension is present.
+function extractDimTag(text: string, dim: Dimension): ValueId | null {
+  const re = buildDimTagRegex(dim);
+  if (!re) return null;
+  const m = re.exec(text);
+  return m ? m[1] : null;
+}
+
+// Remove every tag on `text` whose value id belongs to `dim`. Other tags
+// (including those from other dimensions) are preserved. Leading whitespace
+// is consumed together with the tag so the result doesn't end up with
+// orphaned double spaces.
+function stripDimTags(text: string, dim: Dimension): string {
+  const ids = dim.values
+    .map((v) => v.id)
+    .sort((a, b) => b.length - a.length)
+    .map(escapeRegex);
+  if (ids.length === 0) return text;
+  const re = new RegExp(`\\s*#(?:${ids.join("|")})(?=\\s|$|[^\\w-])`, "g");
+  return text.replace(re, "");
+}
+
+function buildDimTagRegex(dim: Dimension): RegExp | null {
+  const ids = dim.values
+    .map((v) => v.id)
+    .sort((a, b) => b.length - a.length)
+    .map(escapeRegex);
+  if (ids.length === 0) return null;
+  return new RegExp(`(?:^|\\s)#(${ids.join("|")})(?=\\s|$|[^\\w-])`, "g");
+}
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
