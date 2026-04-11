@@ -40,8 +40,115 @@ export function renderNodeList(
     return;
   }
 
-  for (const node of topLevel) {
-    renderOne(app, index, container, node, matchSet, options);
+  if (options.showBreadcrumbs === false) {
+    // Flat render without breadcrumb grouping
+    for (const node of topLevel) {
+      renderOne(app, index, container, node, matchSet, options);
+    }
+    return;
+  }
+
+  // Build a trie keyed by ancestor node id so that matches sharing a breadcrumb
+  // prefix (e.g. "a › b › c") collapse into nested display groups instead of
+  // each rendering its own redundant full path.
+  const trie = buildPathTrie(topLevel, index);
+  const groups = collectDisplayGroups(trie);
+  for (const g of groups) {
+    renderDisplayGroup(app, index, container, g, matchSet, options);
+  }
+}
+
+// ---- Path-prefix grouping ----
+
+interface TrieNode {
+  ancestor: VaultNode | null; // null only for root
+  matches: VaultNode[]; // top-level matches whose path ends here
+  children: Map<string, TrieNode>; // keyed by ancestor node id
+}
+
+interface DisplayGroup {
+  label: string; // collapsed breadcrumb like "a › b" (empty at top level)
+  matches: VaultNode[];
+  children: DisplayGroup[];
+}
+
+function buildPathTrie(topLevel: VaultNode[], index: VaultIndex): TrieNode {
+  const root: TrieNode = { ancestor: null, matches: [], children: new Map() };
+  for (const match of topLevel) {
+    const ancestors = index
+      .getAncestors(match.id)
+      .filter((a) => !(a.type === "folder" && a.title === "(vault)"));
+    let cur = root;
+    for (const anc of ancestors) {
+      let child = cur.children.get(anc.id);
+      if (!child) {
+        child = { ancestor: anc, matches: [], children: new Map() };
+        cur.children.set(anc.id, child);
+      }
+      cur = child;
+    }
+    cur.matches.push(match);
+  }
+  return root;
+}
+
+// Collapse a single-child chain with no matches into one display label
+// (e.g. a → b → c becomes "a › b › c" when there's nothing to emit mid-chain).
+function descendCollapsed(node: TrieNode, segments: string[]): DisplayGroup {
+  const nextSegments = node.ancestor ? [...segments, node.ancestor.title] : segments;
+  const hasMatches = node.matches.length > 0;
+  const childCount = node.children.size;
+  const isBranchOrLeaf = hasMatches || childCount !== 1;
+  if (isBranchOrLeaf) {
+    return {
+      label: nextSegments.join(" › "),
+      matches: node.matches,
+      children: [...node.children.values()].map((c) => descendCollapsed(c, [])),
+    };
+  }
+  // Exactly one child, no matches → absorb it into this display label.
+  const onlyChild = node.children.values().next().value as TrieNode;
+  return descendCollapsed(onlyChild, nextSegments);
+}
+
+function collectDisplayGroups(root: TrieNode): DisplayGroup[] {
+  // The root itself never contributes a label. If it has one child and no
+  // matches, start collapsing from there. Otherwise emit each child as its
+  // own top-level group.
+  if (root.matches.length === 0 && root.children.size === 1) {
+    const only = root.children.values().next().value as TrieNode;
+    return [descendCollapsed(only, [])];
+  }
+  const groups: DisplayGroup[] = [];
+  if (root.matches.length > 0) {
+    groups.push({ label: "", matches: root.matches, children: [] });
+  }
+  for (const child of root.children.values()) {
+    groups.push(descendCollapsed(child, []));
+  }
+  return groups;
+}
+
+function renderDisplayGroup(
+  app: App,
+  index: VaultIndex,
+  container: HTMLElement,
+  group: DisplayGroup,
+  matchSet: Set<string>,
+  options: RenderOptions,
+): void {
+  const el = container.createDiv({ cls: "dim-pathgroup" });
+  if (group.label) {
+    el.createDiv({ cls: "dim-pathgroup-label", text: group.label });
+  }
+  for (const match of group.matches) {
+    renderOne(app, index, el, match, matchSet, { ...options, showBreadcrumbs: false });
+  }
+  if (group.children.length > 0) {
+    const childContainer = el.createDiv({ cls: "dim-pathgroup-children" });
+    for (const child of group.children) {
+      renderDisplayGroup(app, index, childContainer, child, matchSet, options);
+    }
   }
 }
 
