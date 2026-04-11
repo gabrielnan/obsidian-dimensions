@@ -4,11 +4,13 @@
 // and bullet lists with inheritance-friendly parent/child linking.
 
 import { VaultNode, Dimension, DimensionId, ValueId, fileId, lineNodeId, newNode } from "../model";
-import { parseFrontmatterDimensions } from "./frontmatter";
+import { parseFrontmatterDimensions, parseDimIndexFlag } from "./frontmatter";
 
 export interface FileParseResult {
   fileNode: VaultNode;
   nodes: VaultNode[]; // all nodes created for this file, including fileNode
+  hasDimIndexFlag: boolean; // dim-index: true in frontmatter
+  fileHasOwnDimensions: boolean; // file-level tags: carried any dimension value
 }
 
 interface StackEntry {
@@ -47,6 +49,7 @@ export function parseFile(
     }
   }
   const ownDims = parseFrontmatterDimensions(content, dimensions);
+  const hasDimIndexFlag = parseDimIndexFlag(content);
 
   const fileBasename = path.split("/").pop() ?? path;
   const fileNode = newNode({
@@ -202,7 +205,12 @@ export function parseFile(
     // Otherwise: plain prose line, ignored (not indexed as a node).
   }
 
-  return { fileNode, nodes };
+  return {
+    fileNode,
+    nodes,
+    hasDimIndexFlag,
+    fileHasOwnDimensions: ownDims.size > 0,
+  };
 }
 
 function computeIndentDepth(indent: string): number {

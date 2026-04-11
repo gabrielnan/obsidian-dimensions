@@ -31,6 +31,21 @@ export function parseFrontmatterDimensions(
   return out;
 }
 
+// File-level opt-in flag: `dim-index: true` in frontmatter forces the whole
+// file into the index even when nothing inside it carries a dimension tag.
+// Accepts true/yes/on/1 (case-insensitive). Anything else → false.
+export function parseDimIndexFlag(content: string): boolean {
+  const fm = extractFrontmatter(content);
+  if (!fm) return false;
+  for (const line of fm) {
+    const m = line.match(/^dim-index\s*:\s*(.+?)\s*$/);
+    if (!m) continue;
+    const raw = m[1].trim().replace(/^["']|["']$/g, "").toLowerCase();
+    return raw === "true" || raw === "yes" || raw === "on" || raw === "1";
+  }
+  return false;
+}
+
 function extractFrontmatter(content: string): string[] | null {
   const lines = content.split("\n");
   if (lines.length === 0 || !FRONTMATTER_FENCE.test(lines[0])) return null;
