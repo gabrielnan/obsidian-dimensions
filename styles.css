@@ -123,27 +123,36 @@
 }
 
 /* Path-prefix groups: collapsed breadcrumb header + nested subgroups.
-   The header row shares .dim-node's font/size/hover so the view reads as
-   one uniform document; only the segment spans are hyperlink-styled. */
+   The header row shares .dim-node's font/size so the view reads as one
+   uniform document. */
 .dim-pathgroup {
   margin-bottom: 2px;
 }
 .dim-pathgroup-label {
-  /* .dim-node supplies padding, line-height, hover background, etc. */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* Body wraps matches + nested subgroups as one block so it can be indented
-   and highlighted as a unit when its label is hovered. */
+/* Body uses a pure-margin indent (no border-left, no padding-left). That
+   keeps the body's left edge free of its own vertical guide line, so when
+   the parent pathgroup's background lights up on hover the fill is one
+   clean rectangle — no orphan line at the body's left clashing with the
+   label's own accent line. */
 .dim-pathgroup-body.is-indented {
   margin-left: 14px;
-  border-left: 1px solid var(--background-modifier-border);
-  padding-left: 8px;
 }
-.dim-pathgroup-label:hover + .dim-pathgroup-body {
+/* The label sits inside a .dim-node, whose :hover normally paints an accent
+   border-left at x=0 — but since the pathgroup-level background below now
+   handles the hover affordance, suppressing it prevents an L-shape where
+   the label has a 2px accent line the body doesn't. */
+.dim-pathgroup .dim-pathgroup-label:hover {
+  border-left-color: transparent;
+}
+/* Direct label hover: highlight the entire pathgroup block as one unified
+   rectangle. :has() fires on the pathgroup when its direct-child label is
+   under the mouse, filling the whole label+body area with one background. */
+.dim-pathgroup:has(> .dim-pathgroup-label:hover) {
   background: var(--background-modifier-hover);
-  border-left-color: var(--interactive-accent);
 }
 
 .dim-empty {
