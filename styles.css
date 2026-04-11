@@ -133,13 +133,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* Body uses a pure-margin indent (no border-left, no padding-left). That
-   keeps the body's left edge free of its own vertical guide line, so when
-   the parent pathgroup's background lights up on hover the fill is one
-   clean rectangle — no orphan line at the body's left clashing with the
-   label's own accent line. */
+/* Body indent matches .dim-node-children exactly so pathgroup bodies wear
+   the same vertical guide line tagged-bullet subtrees already have. The
+   accent-border suppression + :has() fill below keep the guide line from
+   clashing with hover — it just sits inside the hover rectangle. */
 .dim-pathgroup-body.is-indented {
   margin-left: 14px;
+  border-left: 1px solid var(--background-modifier-border);
+  padding-left: 8px;
 }
 /* The label sits inside a .dim-node, whose :hover normally paints an accent
    border-left at x=0 — but since the pathgroup-level background below now
