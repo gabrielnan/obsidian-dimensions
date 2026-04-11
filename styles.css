@@ -154,6 +154,14 @@
 .dim-pathgroup:has(> .dim-pathgroup-label:hover) {
   background: var(--background-modifier-hover);
 }
+/* Ancestor-chain cascade: whenever any descendant of a pathgroup is under
+   the mouse, its own label shows the same muted hover background. This
+   replicates the natural .dim-node:hover cascade that already works
+   through nested tagged bullets, but extends it up through untagged path
+   labels too, so the full hover path is visible at every level. */
+.dim-pathgroup:hover > .dim-pathgroup-label {
+  background: var(--background-modifier-hover);
+}
 
 .dim-empty {
   color: var(--text-faint);
