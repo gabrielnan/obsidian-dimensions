@@ -112,11 +112,9 @@
   text-overflow: ellipsis;
   margin-bottom: 1px;
 }
-/* Use > direct-child selectors so child node titles don't inherit parent-type styling. */
+/* Headings keep their markdown weight so the group-by view reads like a
+   rendered document; everything else shares the standard bullet styling. */
 .dim-node-type-heading > .dim-node-title { font-weight: 600; }
-.dim-node-type-label   > .dim-node-title { font-style: italic; color: var(--text-muted); }
-.dim-node-type-file    > .dim-node-title { font-weight: 600; color: var(--text-accent); }
-.dim-node-type-folder  > .dim-node-title { font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; font-size: 10px; }
 
 .dim-node-children {
   margin-left: 14px;
@@ -125,24 +123,32 @@
 }
 
 /* Path-prefix groups: collapsed breadcrumb header + nested subgroups.
-   Top-level groups sit flush; nested groups indent with a subtle rule. */
+   The header row shares .dim-node's font/size/hover so the view reads as
+   one uniform document; only the segment spans are hyperlink-styled. */
 .dim-pathgroup {
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 .dim-pathgroup-label {
-  font-size: 10px;
-  color: var(--text-faint);
+  /* .dim-node supplies padding, line-height, hover background, etc. */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin: 4px 0 1px 0;
-  font-weight: 500;
-  letter-spacing: 0.02em;
+}
+.dim-pathgroup-segment {
+  color: var(--text-accent);
+  cursor: pointer;
+}
+.dim-pathgroup-segment:hover {
+  text-decoration: underline;
+}
+.dim-pathgroup-sep {
+  color: var(--text-faint);
+  margin: 0 2px;
 }
 .dim-pathgroup-children {
-  margin-left: 10px;
-  padding-left: 6px;
+  margin-left: 14px;
   border-left: 1px solid var(--background-modifier-border);
+  padding-left: 8px;
 }
 
 .dim-empty {

@@ -67,7 +67,7 @@ interface TrieNode {
 }
 
 interface DisplayGroup {
-  label: string; // collapsed breadcrumb like "a › b" (empty at top level)
+  segments: VaultNode[]; // collapsed ancestor chain; each segment is clickable
   matches: VaultNode[];
   children: DisplayGroup[];
 }
@@ -94,14 +94,14 @@ function buildPathTrie(topLevel: VaultNode[], index: VaultIndex): TrieNode {
 
 // Collapse a single-child chain with no matches into one display label
 // (e.g. a → b → c becomes "a › b › c" when there's nothing to emit mid-chain).
-function descendCollapsed(node: TrieNode, segments: string[]): DisplayGroup {
-  const nextSegments = node.ancestor ? [...segments, node.ancestor.title] : segments;
+function descendCollapsed(node: TrieNode, accumulated: VaultNode[]): DisplayGroup {
+  const nextSegments = node.ancestor ? [...accumulated, node.ancestor] : accumulated;
   const hasMatches = node.matches.length > 0;
   const childCount = node.children.size;
   const isBranchOrLeaf = hasMatches || childCount !== 1;
   if (isBranchOrLeaf) {
     return {
-      label: nextSegments.join(" › "),
+      segments: nextSegments,
       matches: node.matches,
       children: [...node.children.values()].map((c) => descendCollapsed(c, [])),
     };
@@ -112,7 +112,7 @@ function descendCollapsed(node: TrieNode, segments: string[]): DisplayGroup {
 }
 
 function collectDisplayGroups(root: TrieNode): DisplayGroup[] {
-  // The root itself never contributes a label. If it has one child and no
+  // The root itself never contributes a segment. If it has one child and no
   // matches, start collapsing from there. Otherwise emit each child as its
   // own top-level group.
   if (root.matches.length === 0 && root.children.size === 1) {
@@ -121,7 +121,7 @@ function collectDisplayGroups(root: TrieNode): DisplayGroup[] {
   }
   const groups: DisplayGroup[] = [];
   if (root.matches.length > 0) {
-    groups.push({ label: "", matches: root.matches, children: [] });
+    groups.push({ segments: [], matches: root.matches, children: [] });
   }
   for (const child of root.children.values()) {
     groups.push(descendCollapsed(child, []));
@@ -138,8 +138,23 @@ function renderDisplayGroup(
   options: RenderOptions,
 ): void {
   const el = container.createDiv({ cls: "dim-pathgroup" });
-  if (group.label) {
-    el.createDiv({ cls: "dim-pathgroup-label", text: group.label });
+  if (group.segments.length > 0) {
+    const row = el.createDiv({ cls: "dim-node dim-pathgroup-label" });
+    // Row-level click opens the deepest segment (the file/heading closest to
+    // the matches). Segment-level clicks below override via stopPropagation.
+    const deepest = group.segments[group.segments.length - 1];
+    row.addEventListener("click", () => openNode(app, deepest));
+    for (let i = 0; i < group.segments.length; i++) {
+      const seg = group.segments[i];
+      const link = row.createSpan({ cls: "dim-pathgroup-segment", text: seg.title });
+      link.addEventListener("click", (e) => {
+        e.stopPropagation();
+        openNode(app, seg);
+      });
+      if (i < group.segments.length - 1) {
+        row.createSpan({ cls: "dim-pathgroup-sep", text: " › " });
+      }
+    }
   }
   for (const match of group.matches) {
     renderOne(app, index, el, match, matchSet, { ...options, showBreadcrumbs: false });
