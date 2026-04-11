@@ -17,6 +17,7 @@ import { parseFile } from "./parser/file";
 import { parseFolder } from "./parser/folder";
 import { propagate } from "./parser/inheritance";
 import { parseFrontmatterDimensions } from "./parser/frontmatter";
+import { selectRetainedNodes } from "./parser/prune";
 
 type ChangeListener = () => void;
 
@@ -118,13 +119,17 @@ export class VaultIndex {
 
   private async ingestFile(file: TFile, folderParentId: string): Promise<void> {
     const content = await this.app.vault.cachedRead(file);
-    const { fileNode, nodes } = parseFile(file.path, content, this.dimensions);
-    fileNode.parentId = folderParentId;
+    const result = parseFile(file.path, content, this.dimensions);
+    const keepAll = result.hasDimIndexFlag || result.fileHasOwnDimensions;
+    const retained = selectRetainedNodes(result.fileNode, result.nodes, { keepAll });
+    if (retained.length === 0) return; // no tags, no opt-in → skip entirely
+
+    result.fileNode.parentId = folderParentId;
     const parent = this.nodes.get(folderParentId);
-    if (parent && !parent.childIds.includes(fileNode.id)) {
-      parent.childIds.push(fileNode.id);
+    if (parent && !parent.childIds.includes(result.fileNode.id)) {
+      parent.childIds.push(result.fileNode.id);
     }
-    for (const n of nodes) this.nodes.set(n.id, n);
+    for (const n of retained) this.nodes.set(n.id, n);
   }
 
   // ---- Incremental updates ----
