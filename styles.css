@@ -145,10 +145,16 @@
   color: var(--text-faint);
   margin: 0 2px;
 }
-.dim-pathgroup-children {
+/* Body wraps matches + nested subgroups as one block so it can be indented
+   and highlighted as a unit when its label is hovered. */
+.dim-pathgroup-body.is-indented {
   margin-left: 14px;
   border-left: 1px solid var(--background-modifier-border);
   padding-left: 8px;
+}
+.dim-pathgroup-label:hover + .dim-pathgroup-body {
+  background: var(--background-modifier-hover);
+  border-left-color: var(--interactive-accent);
 }
 
 .dim-empty {

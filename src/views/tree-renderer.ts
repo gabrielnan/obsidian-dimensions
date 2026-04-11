@@ -138,7 +138,9 @@ function renderDisplayGroup(
   options: RenderOptions,
 ): void {
   const el = container.createDiv({ cls: "dim-pathgroup" });
-  if (group.segments.length > 0) {
+  const hasLabel = group.segments.length > 0;
+
+  if (hasLabel) {
     const row = el.createDiv({ cls: "dim-node dim-pathgroup-label" });
     // Row-level click opens the deepest segment (the file/heading closest to
     // the matches). Segment-level clicks below override via stopPropagation.
@@ -156,14 +158,19 @@ function renderDisplayGroup(
       }
     }
   }
+
+  // Matches and nested subgroups share one body wrapper so the label's hover
+  // state can highlight the whole block below it via CSS adjacent-sibling.
+  // The body is only indented when there's a label above it; a top-level
+  // group with no label renders flat.
+  const body = el.createDiv({
+    cls: hasLabel ? "dim-pathgroup-body is-indented" : "dim-pathgroup-body",
+  });
   for (const match of group.matches) {
-    renderOne(app, index, el, match, matchSet, { ...options, showBreadcrumbs: false });
+    renderOne(app, index, body, match, matchSet, { ...options, showBreadcrumbs: false });
   }
-  if (group.children.length > 0) {
-    const childContainer = el.createDiv({ cls: "dim-pathgroup-children" });
-    for (const child of group.children) {
-      renderDisplayGroup(app, index, childContainer, child, matchSet, options);
-    }
+  for (const child of group.children) {
+    renderDisplayGroup(app, index, body, child, matchSet, options);
   }
 }
 
