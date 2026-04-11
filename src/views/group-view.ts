@@ -1,8 +1,8 @@
 // Group-by view: renders the unified vault tree re-grouped by the values
 // of a chosen dimension, constrained to a selected scope (vault / folder / file).
 
-import { ItemView, WorkspaceLeaf, TFolder, TFile } from "obsidian";
-import { VaultNode, Dimension, NodeFilter, VAULT_ROOT_ID, fileId, folderId } from "../model";
+import { ItemView, WorkspaceLeaf } from "obsidian";
+import { VaultNode, Dimension, NodeFilter, VAULT_ROOT_ID } from "../model";
 import { VaultIndex } from "../index-store";
 import { renderNodeList } from "./tree-renderer";
 
@@ -125,23 +125,44 @@ export class GroupByView extends ItemView {
   private collectScopeOptions(): { id: string; label: string }[] {
     const out: { id: string; label: string }[] = [{ id: VAULT_ROOT_ID, label: "Vault root" }];
 
-    // Add all folders
-    const root = this.app.vault.getRoot();
-    const walk = (folder: TFolder, prefix: string) => {
-      if (!folder.isRoot()) {
-        out.push({ id: folderId(folder.path), label: "📁 " + folder.path });
-      }
-      for (const child of folder.children) {
-        if (child instanceof TFolder) walk(child, prefix + "  ");
+    // Walk only the indexed tree — under lean indexing, most folders and files
+    // aren't in the index, so listing them as scope options leads to empty views.
+    const root = this.index.getRoot();
+    if (!root) return out;
+
+    const fileNodes: VaultNode[] = [];
+    const folderNodes = new Map<string, VaultNode>();
+    const walk = (node: VaultNode) => {
+      if (node.type === "file") fileNodes.push(node);
+      else if (node.type === "folder") folderNodes.set(node.id, node);
+      for (const cid of node.childIds) {
+        const child = this.index.getNode(cid);
+        if (child) walk(child);
       }
     };
-    walk(root, "");
+    walk(root);
 
-    // Add the currently active file (fast path)
-    const activeFile = this.app.workspace.getActiveFile();
-    if (activeFile && activeFile.extension === "md") {
-      out.push({ id: fileId(activeFile.path), label: "📄 " + activeFile.path + " (active)" });
+    // A folder is "non-empty" iff any indexed file is a descendant. Walk up
+    // from each file marking ancestors until we've covered them all.
+    const nonEmpty = new Set<string>();
+    for (const file of fileNodes) {
+      let pid = file.parentId;
+      while (pid && folderNodes.has(pid)) {
+        if (nonEmpty.has(pid)) break;
+        nonEmpty.add(pid);
+        pid = folderNodes.get(pid)!.parentId;
+      }
     }
+
+    const folders = [...folderNodes.values()]
+      .filter((f) => f.id !== VAULT_ROOT_ID && nonEmpty.has(f.id))
+      .sort((a, b) => a.rawText.localeCompare(b.rawText));
+    for (const f of folders) out.push({ id: f.id, label: "📁 " + f.rawText });
+
+    const files = [...fileNodes].sort((a, b) =>
+      (a.filePath ?? "").localeCompare(b.filePath ?? ""),
+    );
+    for (const f of files) out.push({ id: f.id, label: "📄 " + (f.filePath ?? f.title) });
 
     return out;
   }
