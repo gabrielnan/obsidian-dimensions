@@ -90,6 +90,17 @@ Per value: `id` and `color` are required; `label` is optional. The `id` is the l
 
 After editing `.dimensions.json`, run **Dimensions: Reload .dimensions.json** — Obsidian's vault events don't fire for dot-files, so the reload has to be explicit. The command re-parses the config, regenerates the CSS, reindexes the vault, and refreshes any open group-by views.
 
+## What gets indexed
+
+By default the plugin indexes **only tagged subtrees** — if you don't tag anything in a file, that file is invisible to the plugin (no file node, no children, nothing in the group-by view). When you tag a bullet, heading, or label, the plugin indexes that node and all its descendants, dropping the untagged ancestors above it. This keeps the group-by view focused on content that actually has a dimension, without indexing every bullet across the whole vault.
+
+Two escape hatches for indexing a file in full:
+
+1. **File-level dimension** — put a dimension value in the file's `tags:` frontmatter (e.g. `tags: [p1]`). The whole file is indexed and every node inherits `p1` unless overridden.
+2. **Opt-in flag** — add `dim-index: true` to the file's frontmatter. The whole file is indexed even when nothing carries a dimension value. Useful when you want a file to show up in views without tagging it first.
+
+Folder-level tags in a `_context.md` flow into every file that *is* in the index, but they don't by themselves pull untagged files into the index.
+
 ## What you get
 
 - **Group-by view** (right sidebar): pick a dimension, pick a scope (vault root / any folder / the active file), and see every matching node grouped by value, with breadcrumbs showing the full semantic path (`Craft › Zipline › Zipline Planning › ## Current › **TODAY** › distillation`). Click to jump.
