@@ -16,7 +16,7 @@ import {
 import { parseFile } from "./parser/file";
 import { parseFolder } from "./parser/folder";
 import { propagate } from "./parser/inheritance";
-import { parseDimensionsFrontmatterForFolder } from "./parser/folder-frontmatter";
+import { parseFrontmatterDimensions } from "./parser/frontmatter";
 
 type ChangeListener = () => void;
 
@@ -140,7 +140,7 @@ export class VaultIndex {
       const folderNode = this.nodes.get(fId);
       if (folderNode) {
         const content = await this.app.vault.cachedRead(file);
-        folderNode.ownDimensions = parseDimensionsFrontmatterForFolder(content, this.dimensions);
+        folderNode.ownDimensions = parseFrontmatterDimensions(content, this.dimensions);
         this.runInheritance();
         this.notify();
       }

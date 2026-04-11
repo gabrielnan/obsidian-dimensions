@@ -6,15 +6,18 @@
 //     {
 //       "id": "priority",               // required, used as CSS class suffix
 //       "label": "Priority",            // optional, defaults to id
-//       "tagPrefix": "p",               // required, matches #p/<value> in markdown
 //       "frontmatterKey": "priority",   // optional, defaults to id
 //       "values": [
-//         { "id": "p0", "label": "P0 — must-win", "color": "#ef4444" },
+//         { "id": "p0", "label": "P0", "color": "#ef4444" },
 //         ...
 //       ]
 //     }
 //   ]
 // }
+//
+// A value's `id` is ALSO the inline tag you type in markdown: a value with
+// id "p0" is declared by writing `#p0`. Value ids must therefore be globally
+// unique across all dimensions.
 //
 // Value order is implicit: the array position determines display order.
 // Colors should be hex (#rrggbb or #rgb); other CSS colors work for the
@@ -22,7 +25,6 @@
 
 import { App } from "obsidian";
 import { Dimension, DimensionValue } from "./model";
-import { SEED_DIMENSIONS } from "./dimensions";
 
 export const CONFIG_PATH = ".dimensions.json";
 
@@ -35,7 +37,6 @@ interface RawValue {
 interface RawDimension {
   id: string;
   label?: string;
-  tagPrefix: string;
   frontmatterKey?: string;
   values: RawValue[];
 }
@@ -60,7 +61,7 @@ export async function loadConfig(app: App): Promise<Dimension[]> {
 }
 
 export async function writeDefaultConfig(app: App): Promise<void> {
-  const content = JSON.stringify(serializeConfig(SEED_DIMENSIONS), null, 2) + "\n";
+  const content = JSON.stringify({ dimensions: [] }, null, 2) + "\n";
   await app.vault.adapter.write(CONFIG_PATH, content);
 }
 
@@ -79,9 +80,6 @@ function normalizeConfig(raw: unknown): Dimension[] {
     }
     if (typeof d.id !== "string" || !d.id) {
       throw new Error(`dimensions[${i}].id must be a non-empty string`);
-    }
-    if (typeof d.tagPrefix !== "string" || !d.tagPrefix) {
-      throw new Error(`dimensions[${i}] ("${d.id}").tagPrefix must be a non-empty string`);
     }
     if (!Array.isArray(d.values) || d.values.length === 0) {
       throw new Error(`dimensions[${i}] ("${d.id}").values must be a non-empty array`);
@@ -106,22 +104,23 @@ function normalizeConfig(raw: unknown): Dimension[] {
     out.push({
       id: d.id,
       label: typeof d.label === "string" && d.label ? d.label : d.id,
-      tagPrefix: d.tagPrefix,
       frontmatterKey: typeof d.frontmatterKey === "string" && d.frontmatterKey ? d.frontmatterKey : d.id,
       values,
     });
   });
+  // Value ids double as inline tag names, so they must be globally unique
+  // across all dimensions — otherwise `#foo` would be ambiguous.
+  const seen = new Map<string, string>(); // valueId → dimensionId
+  for (const dim of out) {
+    for (const v of dim.values) {
+      const prev = seen.get(v.id);
+      if (prev !== undefined) {
+        throw new Error(
+          `value id "${v.id}" is used by both "${prev}" and "${dim.id}" — value ids must be unique across dimensions`,
+        );
+      }
+      seen.set(v.id, dim.id);
+    }
+  }
   return out;
-}
-
-function serializeConfig(dimensions: Dimension[]): RawConfig {
-  return {
-    dimensions: dimensions.map((d) => ({
-      id: d.id,
-      label: d.label,
-      tagPrefix: d.tagPrefix,
-      frontmatterKey: d.frontmatterKey,
-      values: d.values.map((v) => ({ id: v.id, label: v.label, color: v.color })),
-    })),
-  };
 }

@@ -8,8 +8,8 @@ export type DimensionId = string;
 export type ValueId = string;
 
 export interface DimensionValue {
-  id: ValueId; // e.g. "p0"
-  label: string; // e.g. "P0 — must-win"
+  id: ValueId; // e.g. "p0" — also the inline tag written in markdown (#p0)
+  label: string; // e.g. "P0"
   color: string; // CSS color, e.g. "#ff4d4d"
   order: number; // sort order within the dimension
 }
@@ -17,7 +17,6 @@ export interface DimensionValue {
 export interface Dimension {
   id: DimensionId; // e.g. "priority"
   label: string; // e.g. "Priority"
-  tagPrefix: string; // e.g. "p"  → matches #p/<value>
   frontmatterKey: string; // e.g. "priority" under the `dimensions:` block
   values: DimensionValue[];
 }

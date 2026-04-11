@@ -1,11 +1,16 @@
 // Dimensions — plugin entry point.
 
 import { Plugin, TFile, WorkspaceLeaf, Notice } from "obsidian";
-import { Extension } from "@codemirror/state";
+import { TransactionSpec } from "@codemirror/state";
 import { VaultIndex } from "./src/index-store";
-import { SEED_DIMENSIONS } from "./src/dimensions";
 import { Dimension } from "./src/model";
-import { createColoringExtension } from "./src/decorations";
+import {
+  ColoringContext,
+  createColoringExtension,
+  dimensionsChangedEffect,
+  refreshEffect,
+  setActiveDimEffect,
+} from "./src/decorations";
 import { GroupByView, GROUP_VIEW_TYPE } from "./src/views/group-view";
 import {
   CONFIG_PATH,
@@ -26,8 +31,8 @@ const DEFAULT_SETTINGS: DimensionsSettings = {
 export default class DimensionsPlugin extends Plugin {
   settings!: DimensionsSettings;
   index!: VaultIndex;
-  private dimensions: Dimension[] = SEED_DIMENSIONS;
-  private editorExtensions: Extension[] = [];
+  private dimensions: Dimension[] = [];
+  private coloringCtx!: ColoringContext;
 
   async onload(): Promise<void> {
     console.log("[Dimensions] loading");
@@ -45,15 +50,20 @@ export default class DimensionsPlugin extends Plugin {
         new GroupByView(leaf, this.index, this.dimensions, this.dimensions[0]?.id ?? ""),
     );
 
-    // Editor extension for in-editor line coloring.
-    const coloringExt = createColoringExtension({
+    // Editor extension for in-editor line coloring + top-of-file control bar.
+    // We hold the context as a plugin field so config reloads can swap the
+    // dimension list in place (it's a mutable reference).
+    this.coloringCtx = {
       index: this.index,
       dimensions: this.dimensions,
-      activeDimensionId: this.settings.activeColoringDimension,
+      initialActiveDimensionId: this.settings.activeColoringDimension,
       getActiveFilePath: () => this.app.workspace.getActiveFile()?.path ?? null,
-    });
-    this.editorExtensions.push(coloringExt);
-    this.registerEditorExtension(this.editorExtensions);
+      onChange: (next) => {
+        this.settings.activeColoringDimension = next;
+        void this.saveSettings();
+      },
+    };
+    this.registerEditorExtension(createColoringExtension(this.coloringCtx));
 
     // Inject per-dimension/value CSS classes from the loaded config.
     applyDynamicStyles(this.dimensions);
@@ -145,16 +155,16 @@ export default class DimensionsPlugin extends Plugin {
     await this.saveData(this.settings);
   }
 
-  // Read `.dimensions.json` from vault root. On first run, create it with defaults.
-  // On parse error: show a notice and fall back — to seeds on initial load,
+  // Read `.dimensions.json` from vault root. On first run, create an empty stub.
+  // On parse error: show a notice and fall back — to empty on initial load,
   // or keep the current in-memory dimensions on reload.
   private async loadDimensionsFromConfig(opts: { isInitial: boolean }): Promise<void> {
     try {
       if (!(await configExists(this.app))) {
         await writeDefaultConfig(this.app);
-        this.dimensions = SEED_DIMENSIONS;
+        this.dimensions = [];
         if (opts.isInitial) {
-          new Notice(`Dimensions: created ${CONFIG_PATH} with defaults`);
+          new Notice(`Dimensions: created empty ${CONFIG_PATH}`);
         }
         return;
       }
@@ -164,7 +174,7 @@ export default class DimensionsPlugin extends Plugin {
       console.error("[Dimensions] config load error", e);
       new Notice(`Dimensions: ${msg}`);
       if (opts.isInitial) {
-        this.dimensions = SEED_DIMENSIONS;
+        this.dimensions = [];
       }
       // On reload, leave this.dimensions untouched so the user keeps working state.
     }
@@ -178,16 +188,19 @@ export default class DimensionsPlugin extends Plugin {
     this.index.setDimensions(this.dimensions);
     await this.index.rebuildAll();
 
-    // Rebuild the editor extension with the new dimensions so line coloring picks them up.
-    const ext = createColoringExtension({
-      index: this.index,
-      dimensions: this.dimensions,
-      activeDimensionId: this.settings.activeColoringDimension,
-      getActiveFilePath: () => this.app.workspace.getActiveFile()?.path ?? null,
-    });
-    this.editorExtensions.length = 0;
-    this.editorExtensions.push(ext);
-    this.app.workspace.updateOptions();
+    // Swap the mutable dimension list the editor extension reads from, then
+    // notify open panels so they re-render their option list. If the active
+    // dim was removed, reset the active coloring to "off".
+    this.coloringCtx.dimensions = this.dimensions;
+    const activeId = this.settings.activeColoringDimension;
+    const activeStillExists =
+      activeId === null || this.dimensions.some((d) => d.id === activeId);
+    if (!activeStillExists) {
+      this.settings.activeColoringDimension = null;
+      void this.saveSettings();
+      this.dispatchToEditors({ effects: setActiveDimEffect.of(null) });
+    }
+    this.dispatchToEditors({ effects: dimensionsChangedEffect.of() });
 
     // Notify open group-by views so their dropdowns and groupings refresh.
     this.app.workspace.getLeavesOfType(GROUP_VIEW_TYPE).forEach((leaf) => {
@@ -219,33 +232,26 @@ export default class DimensionsPlugin extends Plugin {
     const next = ids[(idx + 1) % ids.length];
     this.settings.activeColoringDimension = next;
     void this.saveSettings();
-
-    // Rebuild editor extension so the new active dimension is picked up.
-    const ext = createColoringExtension({
-      index: this.index,
-      dimensions: this.dimensions,
-      activeDimensionId: next,
-      getActiveFilePath: () => this.app.workspace.getActiveFile()?.path ?? null,
-    });
-    this.editorExtensions.length = 0;
-    this.editorExtensions.push(ext);
-    this.app.workspace.updateOptions();
-    this.refreshEditors();
+    this.dispatchToEditors({ effects: setActiveDimEffect.of(next) });
     new Notice(`Dimensions: coloring = ${next ?? "off"}`);
   }
 
   private refreshEditors(): void {
-    // Nudge CodeMirror to rebuild decorations by dispatching a no-op on every markdown view.
+    // Trigger a decoration rebuild on every open editor.
+    this.dispatchToEditors({ effects: refreshEffect.of() });
+  }
+
+  private dispatchToEditors(spec: TransactionSpec): void {
     this.app.workspace.iterateAllLeaves((leaf) => {
       const view = leaf.view as unknown as {
         editor?: {
-          cm?: { dispatch: (tr: unknown) => void };
+          cm?: { dispatch: (tr: TransactionSpec) => void };
         };
       };
       const cm = view?.editor?.cm;
       if (cm) {
         try {
-          cm.dispatch({ userEvent: "dim-refresh" });
+          cm.dispatch(spec);
         } catch {
           // no-op
         }

@@ -4,6 +4,7 @@
 // and bullet lists with inheritance-friendly parent/child linking.
 
 import { VaultNode, Dimension, DimensionId, ValueId, fileId, lineNodeId, newNode } from "../model";
+import { parseFrontmatterDimensions } from "./frontmatter";
 
 export interface FileParseResult {
   fileNode: VaultNode;
@@ -37,16 +38,15 @@ export function parseFile(
 
   // ---- Frontmatter extraction (file-level dimensions) ----
   let bodyStart = 0;
-  const ownDims = new Map<DimensionId, ValueId>();
   if (lines.length > 0 && FRONTMATTER_FENCE.test(lines[0])) {
     for (let i = 1; i < lines.length; i++) {
       if (FRONTMATTER_FENCE.test(lines[i])) {
         bodyStart = i + 1;
-        parseDimensionsFrontmatter(lines.slice(1, i), dimensions, ownDims);
         break;
       }
     }
   }
+  const ownDims = parseFrontmatterDimensions(content, dimensions);
 
   const fileBasename = path.split("/").pop() ?? path;
   const fileNode = newNode({
@@ -227,88 +227,46 @@ function computeIndentDepth(indent: string): number {
   return depth + 1; // depth=1 is the shallowest bullet
 }
 
+// Value ids double as the inline tag name: a value with id "p0" is declared
+// by typing `#p0`. We build one alternation regex per parse run from the
+// union of all registered value ids (longest first so `#p00` beats `#p0`).
+function buildTagRegex(dimensions: Dimension[]): RegExp | null {
+  const ids = dimensions
+    .flatMap((d) => d.values.map((v) => v.id))
+    .sort((a, b) => b.length - a.length)
+    .map(escapeRegex);
+  if (ids.length === 0) return null;
+  return new RegExp(`(?:^|\\s)#(${ids.join("|")})(?=\\s|$|[^\\w-])`, "g");
+}
+
+function buildIdToDimension(dimensions: Dimension[]): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const dim of dimensions) {
+    for (const v of dim.values) map.set(v.id, dim.id);
+  }
+  return map;
+}
+
 export function extractTags(text: string, dimensions: Dimension[]): Map<DimensionId, ValueId> {
   const result = new Map<DimensionId, ValueId>();
-  for (const dim of dimensions) {
-    const re = new RegExp(`(?:^|\\s)#${escapeRegex(dim.tagPrefix)}/([\\w\\-]+)`, "g");
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(text)) !== null) {
-      const valueId = m[1];
-      if (dim.values.some((v) => v.id === valueId)) {
-        result.set(dim.id, valueId);
-      }
-    }
+  const re = buildTagRegex(dimensions);
+  if (!re) return result;
+  const idToDim = buildIdToDimension(dimensions);
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    const valueId = m[1];
+    const dimId = idToDim.get(valueId);
+    if (dimId) result.set(dimId, valueId);
   }
   return result;
 }
 
 export function stripTags(text: string, dimensions: Dimension[]): string {
-  let out = text;
-  for (const dim of dimensions) {
-    const re = new RegExp(`(?:^|\\s)#${escapeRegex(dim.tagPrefix)}/[\\w\\-]+`, "g");
-    out = out.replace(re, "");
-  }
-  return out.trim();
+  const re = buildTagRegex(dimensions);
+  if (!re) return text.trim();
+  return text.replace(re, "").trim();
 }
 
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-// Minimal, tolerant YAML subset parser for frontmatter's `dimensions:` block.
-// Supports either inline form `dimensions: { priority: p0 }` or nested form:
-//   dimensions:
-//     priority: p0
-//     timeframe: week
-function parseDimensionsFrontmatter(
-  fmLines: string[],
-  dimensions: Dimension[],
-  out: Map<DimensionId, ValueId>,
-): void {
-  let inBlock = false;
-  for (const raw of fmLines) {
-    const line = raw.replace(/\r$/, "");
-    if (!inBlock) {
-      // Inline form
-      const inlineMatch = line.match(/^dimensions\s*:\s*\{(.+)\}\s*$/);
-      if (inlineMatch) {
-        parseInlinePairs(inlineMatch[1], dimensions, out);
-        continue;
-      }
-      if (/^dimensions\s*:\s*$/.test(line)) {
-        inBlock = true;
-        continue;
-      }
-      continue;
-    }
-    // In block: indented key:value pairs
-    const kvMatch = line.match(/^\s+([a-zA-Z0-9_\-]+)\s*:\s*([a-zA-Z0-9_\-]+)\s*$/);
-    if (kvMatch) {
-      assignByFrontmatterKey(kvMatch[1], kvMatch[2], dimensions, out);
-      continue;
-    }
-    // Non-indented line ends the block
-    if (/^\S/.test(line)) {
-      inBlock = false;
-    }
-  }
-}
-
-function parseInlinePairs(inner: string, dimensions: Dimension[], out: Map<DimensionId, ValueId>): void {
-  for (const pair of inner.split(",")) {
-    const m = pair.match(/^\s*([a-zA-Z0-9_\-]+)\s*:\s*([a-zA-Z0-9_\-]+)\s*$/);
-    if (m) assignByFrontmatterKey(m[1], m[2], dimensions, out);
-  }
-}
-
-function assignByFrontmatterKey(
-  key: string,
-  value: string,
-  dimensions: Dimension[],
-  out: Map<DimensionId, ValueId>,
-): void {
-  const dim = dimensions.find((d) => d.frontmatterKey === key);
-  if (!dim) return;
-  if (!dim.values.some((v) => v.id === value)) return;
-  out.set(dim.id, value);
 }

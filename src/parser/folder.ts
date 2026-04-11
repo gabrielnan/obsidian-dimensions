@@ -1,9 +1,9 @@
 // Folder parser: creates folder nodes and reads folder-level dimensions
-// from a `dimensions:` block in `_context.md` frontmatter (or a `_dimensions.yaml` sidecar later).
+// from the folder's _context.md frontmatter (tags list or legacy dimensions block).
 
 import { Vault, TFile, TFolder } from "obsidian";
 import { VaultNode, Dimension, VAULT_ROOT_ID, folderId, newNode } from "../model";
-import { parseDimensionsFrontmatterForFolder } from "./folder-frontmatter";
+import { parseFrontmatterDimensions } from "./frontmatter";
 
 export async function parseFolder(
   folder: TFolder,
@@ -29,7 +29,7 @@ export async function parseFolder(
   if (contextFile) {
     try {
       const content = await vault.cachedRead(contextFile);
-      node.ownDimensions = parseDimensionsFrontmatterForFolder(content, dimensions);
+      node.ownDimensions = parseFrontmatterDimensions(content, dimensions);
     } catch {
       // ignore
     }

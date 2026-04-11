@@ -34,17 +34,19 @@ Priority and timeframe aren't a list of checkboxes — they're independent axes.
 
 | Node type | How to declare | Example |
 |---|---|---|
-| **Bullet** | Inline nested tag | `- distillation #p/p0 #t/week` |
-| **Heading** | Inline nested tag | `## Current #t/week` |
-| **Label** (non-bulleted group marker like `**TODAY**` or `Learning`) | Inline nested tag | `**TODAY** #t/today` |
-| **File** | YAML frontmatter `dimensions:` block | `dimensions:\n  priority: p1` |
-| **Folder** | `dimensions:` block in the folder's `_context.md` frontmatter | `dimensions:\n  priority: p2` |
+| **Bullet** | Inline tag | `- distillation #p0 #sw` |
+| **Heading** | Inline tag | `## Current #sw` |
+| **Label** (non-bulleted group marker like `**TODAY**` or `Learning`) | Inline tag | `**TODAY** #st` |
+| **File** | Obsidian `tags` frontmatter property | `tags:\n  - p1\n  - sw` |
+| **Folder** | `tags` property in the folder's `_context.md` frontmatter | `tags:\n  - p2` |
 
-Tag prefixes are configurable per dimension. The default dimensions use `#p/...` for priority and `#t/...` for timeframe.
+For files and folders, use Obsidian's built-in **tags** property — add a `tags` property in the Properties UI, type the value id (e.g. `p0`), press Enter, and you get a native chip. The parser reads that list and resolves each entry against the same id→dimension map it uses for inline tags. Non-matching entries are ignored, so you can freely mix dimension tags with regular tags.
+
+A value's `id` is also the tag you type: a value with id `p0` is declared by writing `#p0`. Value ids must be globally unique across all dimensions so the parser can resolve `#p0` to exactly one value.
 
 ## Configuration
 
-Dimensions are defined in `.dimensions.json` at the **root of your vault**. On first load the plugin creates this file with the default priority + timeframe dimensions, so you don't need to touch anything to get started. Edit the file whenever you want to add a new axis, rename a value, or change a color.
+Dimensions are defined in `.dimensions.json` at the **root of your vault**. On first load the plugin creates an empty stub (`{"dimensions": []}`); you fill it in with whatever axes you want.
 
 ```json
 {
@@ -52,13 +54,23 @@ Dimensions are defined in `.dimensions.json` at the **root of your vault**. On f
     {
       "id": "priority",
       "label": "Priority",
-      "tagPrefix": "p",
       "frontmatterKey": "priority",
       "values": [
-        { "id": "p0", "label": "P0 — must-win", "color": "#ef4444" },
-        { "id": "p1", "label": "P1 — high",     "color": "#f59e0b" },
-        { "id": "p2", "label": "P2 — normal",   "color": "#eab308" },
-        { "id": "p3", "label": "P3 — low",      "color": "#94a3b8" }
+        { "id": "p0", "label": "P0", "color": "#ef4444" },
+        { "id": "p1", "label": "P1", "color": "#f59e0b" },
+        { "id": "p2", "label": "P2", "color": "#eab308" },
+        { "id": "p3", "label": "P3", "color": "#94a3b8" }
+      ]
+    },
+    {
+      "id": "schedule",
+      "label": "Schedule",
+      "frontmatterKey": "schedule",
+      "values": [
+        { "id": "st", "label": "Today",   "color": "#ef4444" },
+        { "id": "sw", "label": "Week",    "color": "#f59e0b" },
+        { "id": "sm", "label": "Month",   "color": "#eab308" },
+        { "id": "sq", "label": "Quarter", "color": "#94a3b8" }
       ]
     }
   ]
@@ -71,11 +83,10 @@ Per dimension:
 |---|---|
 | `id` | Stable identifier; used in CSS classes and as fallback for `frontmatterKey`. |
 | `label` | Display name in the group-by view (optional; defaults to `id`). |
-| `tagPrefix` | Matches `#<prefix>/<value>` inline tags. |
 | `frontmatterKey` | Key under the `dimensions:` block in file/folder frontmatter (optional; defaults to `id`). |
 | `values` | Ordered array of possible values. Array order determines display order. |
 
-Per value: `id` and `color` are required; `label` is optional. Colors should be hex (`#rrggbb` or `#rgb`) so the plugin can generate the left-border + tinted background pair.
+Per value: `id` and `color` are required; `label` is optional. The `id` is the literal tag name — `{id: "p0"}` means you type `#p0` in markdown. Value ids must be unique across all dimensions. Colors should be hex (`#rrggbb` or `#rgb`) so the plugin can generate the left-border + tinted background pair.
 
 After editing `.dimensions.json`, run **Dimensions: Reload .dimensions.json** — Obsidian's vault events don't fire for dot-files, so the reload has to be explicit. The command re-parses the config, regenerates the CSS, reindexes the vault, and refreshes any open group-by views.
 
