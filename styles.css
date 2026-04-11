@@ -134,17 +134,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.dim-pathgroup-segment {
-  color: var(--text-accent);
-  cursor: pointer;
-}
-.dim-pathgroup-segment:hover {
-  text-decoration: underline;
-}
-.dim-pathgroup-sep {
-  color: var(--text-faint);
-  margin: 0 2px;
-}
 /* Body wraps matches + nested subgroups as one block so it can be indented
    and highlighted as a unit when its label is hovered. */
 .dim-pathgroup-body.is-indented {

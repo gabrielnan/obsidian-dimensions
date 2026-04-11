@@ -142,21 +142,14 @@ function renderDisplayGroup(
 
   if (hasLabel) {
     const row = el.createDiv({ cls: "dim-node dim-pathgroup-label" });
-    // Row-level click opens the deepest segment (the file/heading closest to
-    // the matches). Segment-level clicks below override via stopPropagation.
+    // Clicking anywhere on the row opens the deepest segment (the file or
+    // heading closest to the matches below).
     const deepest = group.segments[group.segments.length - 1];
     row.addEventListener("click", () => openNode(app, deepest));
-    for (let i = 0; i < group.segments.length; i++) {
-      const seg = group.segments[i];
-      const link = row.createSpan({ cls: "dim-pathgroup-segment", text: seg.title });
-      link.addEventListener("click", (e) => {
-        e.stopPropagation();
-        openNode(app, seg);
-      });
-      if (i < group.segments.length - 1) {
-        row.createSpan({ cls: "dim-pathgroup-sep", text: " › " });
-      }
-    }
+    row.createSpan({
+      cls: "dim-node-title",
+      text: group.segments.map((s) => s.title).join(" › "),
+    });
   }
 
   // Matches and nested subgroups share one body wrapper so the label's hover
