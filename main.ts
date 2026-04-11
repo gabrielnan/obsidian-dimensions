@@ -121,8 +121,13 @@ export default class DimensionsPlugin extends Plugin {
     });
     this.addCommand({
       id: "cycle-coloring-dimension",
-      name: "Cycle active coloring dimension",
-      callback: () => this.cycleColoringDimension(),
+      name: "Cycle active coloring dimension (next)",
+      callback: () => this.cycleColoringDimension(1),
+    });
+    this.addCommand({
+      id: "cycle-coloring-dimension-prev",
+      name: "Cycle active coloring dimension (previous)",
+      callback: () => this.cycleColoringDimension(-1),
     });
     this.addCommand({
       id: "cycle-line-value-next",
@@ -235,11 +240,11 @@ export default class DimensionsPlugin extends Plugin {
     }
   }
 
-  private cycleColoringDimension(): void {
+  private cycleColoringDimension(direction: 1 | -1): void {
     const ids = [null as string | null, ...this.dimensions.map((d) => d.id)];
     const current = this.settings.activeColoringDimension;
     const idx = ids.indexOf(current);
-    const next = ids[(idx + 1) % ids.length];
+    const next = ids[(idx + direction + ids.length) % ids.length];
     this.settings.activeColoringDimension = next;
     void this.saveSettings();
     this.dispatchToEditors({ effects: setActiveDimEffect.of(next) });
